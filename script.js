@@ -146,33 +146,28 @@ function updateChartData(temp, hum) {
 }
 
 // ==========================================
-// 3. DATA FETCHING (Node-RED Integration)
+// 3. DATA FETCHING (Simulation Mode)
 // ==========================================
 
 async function fetchSensorData(isManual = false) {
     try {
         if (isManual) refreshIcon.classList.add('bx-spin');
 
-        const res = await fetch(`${API}/data`);
-        const data = await res.json();
-        
-        // Use the existing dashboard elements to display the data
-        const temp = data.temperature !== undefined ? data.temperature : "--";
-        const hum = data.humidity !== undefined ? data.humidity : "--";
-        
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Generate fake data
+        const temp = (Math.random() * 15 + 20).toFixed(1); // 20 - 35
+        const hum = (Math.random() * 30 + 40).toFixed(1);  // 40 - 70
+
         updateDashboardUI(temp, hum);
         updateChartData(temp, hum);
         
         lastUpdatedTxt.innerText = new Date().toLocaleTimeString();
         setSystemStatus(true);
         
-        // Auto-update UI toggles if the data payload includes them via Node-RED
-        if(data.mode !== undefined && !isManual) updateToggleUI(modeToggle, modeLabel, data.mode, "Auto", "Manual");
-        if(data.waterMotor !== undefined && !isManual) updateToggleUI(waterToggle, waterLabel, data.waterMotor, "ON", "OFF");
-        if(data.soilMotor !== undefined && !isManual) updateToggleUI(soilToggle, soilLabel, data.soilMotor, "ON", "OFF");
-
     } catch (error) {
-        console.error("Error fetching data from Node-RED:", error);
+        console.error("Error generating fake data:", error);
         setSystemStatus(false);
     } finally {
         if (isManual) setTimeout(() => refreshIcon.classList.remove('bx-spin'), 500);
