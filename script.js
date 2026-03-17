@@ -1,37 +1,158 @@
 /**
  * Smart Agriculture IoT Dashboard Logic
- * Hybrid Mode: Simulates data locally for presentation purposes.
- * Real control is deferred to the Arduino IoT Cloud via the redirect button.
+ * Hybrid Mode + Node-RED Integration + Chart Visualization
  */
 
-// High Temperature Alert Threshold
-const ALERT_TEMP = 35; // °C
+// ==========================================
+// 1. CONFIGURATION & DOM ELEMENTS
+// ==========================================
+const API = "http://localhost:1880";
+const ALERT_TEMP = 35; // °C threshold for alert
 
-// ==========================================
-// 1. DOM ELEMENTS
-// ==========================================
+// DOM Elements
 const tempValue = document.getElementById('tempValue');
-const tempCard = document.getElementById('tempCard');
 const humValue = document.getElementById('humValue');
+const tempGauge = document.getElementById('tempGauge');
+const humGauge = document.getElementById('humGauge');
+const tempCard = document.getElementById('tempCard');
 
 const modeToggle = document.getElementById('modeToggle');
 const modeLabel = document.getElementById('modeLabel');
-
 const waterToggle = document.getElementById('waterMotorToggle');
 const waterLabel = document.getElementById('waterMotorLabel');
-
 const soilToggle = document.getElementById('soilMotorToggle');
 const soilLabel = document.getElementById('soilMotorLabel');
 
 const lastUpdatedTxt = document.getElementById('lastUpdated');
+const refreshIcon = document.getElementById('refreshIcon');
+const pulseDot = document.querySelector('.pulse-dot');
+const statusMessage = document.getElementById('statusMessage');
+
+// Chart instance
+let historyChart;
 
 // ==========================================
-// 2. DATA FETCHING (Node-RED Integration)
+// 2. CHART INITIALIZATION
 // ==========================================
-const API = "http://localhost:1880";
+function initChart() {
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    
+    // Gradient for temperature line
+    let tempGradient = ctx.createLinearGradient(0, 0, 0, 400);
+    tempGradient.addColorStop(0, 'rgba(251, 146, 60, 0.5)');   // Orange transparent
+    tempGradient.addColorStop(1, 'rgba(251, 146, 60, 0.0)');
 
-async function fetchSensorData() {
+    // Gradient for humidity line
+    let humGradient = ctx.createLinearGradient(0, 0, 0, 400);
+    humGradient.addColorStop(0, 'rgba(56, 189, 248, 0.5)');    // Blue transparent
+    humGradient.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+    // Setting up global font for chart
+    Chart.defaults.font.family = "'Poppins', sans-serif";
+    Chart.defaults.color = '#94a3b8';
+
+    historyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], // Time labels
+            datasets: [
+                {
+                    label: 'Temp (°C)',
+                    data: [],
+                    borderColor: '#f97316',
+                    backgroundColor: tempGradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#f97316',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Humidity (%)',
+                    data: [],
+                    borderColor: '#0ea5e9',
+                    backgroundColor: humGradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#0ea5e9',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { boxWidth: 12, usePointStyle: true }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#f8fafc',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    padding: 10,
+                    displayColors: true,
+                    usePointStyle: true,
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
+                    ticks: { maxTicksLimit: 7 }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
+                    suggestedMin: 10,
+                    suggestedMax: 80
+                }
+            },
+            interaction: { mode: 'index', intersect: false }
+        }
+    });
+}
+
+function updateChartData(temp, hum) {
+    const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    const maxDataPoints = 15; // Keep last 15 ticks showing
+    
+    if (historyChart.data.labels.length > maxDataPoints) {
+        historyChart.data.labels.shift();
+        historyChart.data.datasets[0].data.shift();
+        historyChart.data.datasets[1].data.shift();
+    }
+    
+    // Convert logic to ensure numerical parsing
+    const tempNum = parseFloat(temp) || 0;
+    const humNum = parseFloat(hum) || 0;
+
+    // Only add logic if data is valid number
+    if(tempNum > 0 || humNum > 0) {
+        historyChart.data.labels.push(timeNow);
+        historyChart.data.datasets[0].data.push(tempNum);
+        historyChart.data.datasets[1].data.push(humNum);
+        historyChart.update('none'); // Update without full animation jump
+    }
+}
+
+// ==========================================
+// 3. DATA FETCHING (Node-RED Integration)
+// ==========================================
+
+async function fetchSensorData(isManual = false) {
     try {
+        if (isManual) refreshIcon.classList.add('bx-spin');
+
         const res = await fetch(`${API}/data`);
         const data = await res.json();
         
@@ -39,38 +160,52 @@ async function fetchSensorData() {
         const temp = data.temperature !== undefined ? data.temperature : "--";
         const hum = data.humidity !== undefined ? data.humidity : "--";
         
-        updateDashboard(temp, hum);
-        lastUpdatedTxt.innerText = new Date().toLocaleTimeString();
+        updateDashboardUI(temp, hum);
+        updateChartData(temp, hum);
         
-        // Auto-update UI toggles if the data payload includes them
-        if(data.mode !== undefined) updateToggleUI(modeToggle, modeLabel, data.mode, "Auto", "Manual");
-        if(data.waterMotor !== undefined) updateToggleUI(waterToggle, waterLabel, data.waterMotor, "ON", "OFF");
-        if(data.soilMotor !== undefined) updateToggleUI(soilToggle, soilLabel, data.soilMotor, "ON", "OFF");
+        lastUpdatedTxt.innerText = new Date().toLocaleTimeString();
+        setSystemStatus(true);
+        
+        // Auto-update UI toggles if the data payload includes them via Node-RED
+        if(data.mode !== undefined && !isManual) updateToggleUI(modeToggle, modeLabel, data.mode, "Auto", "Manual");
+        if(data.waterMotor !== undefined && !isManual) updateToggleUI(waterToggle, waterLabel, data.waterMotor, "ON", "OFF");
+        if(data.soilMotor !== undefined && !isManual) updateToggleUI(soilToggle, soilLabel, data.soilMotor, "ON", "OFF");
+
     } catch (error) {
         console.error("Error fetching data from Node-RED:", error);
+        setSystemStatus(false);
+    } finally {
+        if (isManual) setTimeout(() => refreshIcon.classList.remove('bx-spin'), 500);
     }
 }
 
+function manualRefresh() {
+    fetchSensorData(true);
+}
+
 // ==========================================
-// 3. UI UPDATES
+// 4. UI UPDATES
 // ==========================================
 
-function updateDashboard(temp, hum) {
-    // Update text
+function updateDashboardUI(temp, hum) {
     tempValue.innerText = temp;
     humValue.innerText = hum;
 
+    const tVal = parseFloat(temp) || 0;
+    const hVal = parseFloat(hum) || 0;
+
+    // Map gauge widths (assuming ranges: temp 0-50, hum 0-100)
+    tempGauge.style.width = `${Math.min((tVal / 50) * 100, 100)}%`;
+    humGauge.style.width = `${Math.min((hVal / 100) * 100, 100)}%`;
+
     // Apply alert styling for high temperature
-    if (parseFloat(temp) > ALERT_TEMP) {
-        tempValue.className = "value alert";
+    if (tVal > ALERT_TEMP) {
         tempValue.parentElement.parentElement.parentElement.classList.add("alert");
+        tempValue.classList.add("alert");
     } else {
-        tempValue.className = "value normal";
         tempValue.parentElement.parentElement.parentElement.classList.remove("alert");
+        tempValue.classList.remove("alert");
     }
-    
-    // Normal color for humidity
-    humValue.className = "value normal";
 }
 
 function updateToggleUI(checkbox, label, isChecked, textOn, textOff) {
@@ -79,21 +214,30 @@ function updateToggleUI(checkbox, label, isChecked, textOn, textOff) {
     label.className = isChecked ? "control-label active" : "control-label inactive";
 }
 
-// ==========================================
-// 4. TOGGLE EVENT HANDLERS
-// ==========================================
+function setSystemStatus(isOnline) {
+    if(isOnline) {
+        pulseDot.classList.remove('error');
+        statusMessage.innerText = "System Online";
+        statusMessage.className = "status-normal";
+    } else {
+        pulseDot.classList.add('error');
+        statusMessage.innerText = "Connection Error";
+        statusMessage.className = "status-alert";
+    }
+}
 
-// In hybrid mode, these represent "local" manual overrides or intentions
-// If the user intends to genuinely change the physical system, they are
-// directed to use the "Manage on Arduino Cloud" button.
-
+// ==========================================
+// 5. TOGGLE EVENT HANDLERS
+// ==========================================
 function toggleMode() {
     const isAuto = modeToggle.checked;
     updateToggleUI(modeToggle, modeLabel, isAuto, "Auto", "Manual");
     
-    // UI behavior constraint: if Auto, you cannot manually toggle motors here
     waterToggle.disabled = isAuto;
     soilToggle.disabled = isAuto;
+    
+    // To complete full integration later:
+    // fetch(`${API}/control`, { method: 'POST', body: JSON.stringify({ mode: isAuto }) })
 }
 
 function toggleWaterMotor() {
@@ -107,13 +251,19 @@ function toggleSoilMotor() {
 }
 
 // ==========================================
-// 5. INITIALIZATION
+// 6. INITIALIZATION
 // ==========================================
-// Start updating simulated data every 3 seconds
-fetchSensorData();
-setInterval(fetchSensorData, 3000);
-
-// Initialize UI state
-updateToggleUI(modeToggle, modeLabel, false, "Auto", "Manual");
-updateToggleUI(waterToggle, waterLabel, false, "ON", "OFF");
-updateToggleUI(soilToggle, soilLabel, false, "ON", "OFF");
+window.onload = () => {
+    initChart();
+    
+    // Initial fetch
+    fetchSensorData();
+    
+    // Interval loop (3s)
+    setInterval(() => fetchSensorData(false), 3000);
+    
+    // Initialize UI state visually
+    updateToggleUI(modeToggle, modeLabel, modeToggle.checked, "Auto", "Manual");
+    updateToggleUI(waterToggle, waterLabel, waterToggle.checked, "ON", "OFF");
+    updateToggleUI(soilToggle, soilLabel, soilToggle.checked, "ON", "OFF");
+};
