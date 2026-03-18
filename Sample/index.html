@@ -3,33 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Agri Dashboard</title>
+    <title>Smart Agriculture Dashboard</title>
     <!-- Boxicons for modern icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Background Elements -->
-    <div class="bg-shape shape-1"></div>
-    <div class="bg-shape shape-2"></div>
-    <div class="bg-shape shape-3"></div>
+    <!-- Abstract Nature SVG Backgrounds -->
+    <div class="bg-waves">
+        <!-- Soft top wave -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="wave wave-top">
+            <path fill="rgba(46, 125, 50, 0.03)" d="M0,160L48,170.7C96,181,192,203,288,181.3C384,160,480,96,576,90.7C672,85,768,139,864,144C960,149,1056,107,1152,106.7C1248,107,1344,149,1392,170.7L1440,192L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
+        </svg>
+        <!-- Soft bottom wave -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="wave wave-bottom">
+            <path fill="rgba(46, 125, 50, 0.05)" d="M0,224L48,213.3C96,203,192,181,288,186.7C384,192,480,224,576,213.3C672,203,768,149,864,138.7C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+        </svg>
+    </div>
 
-    <div class="dashboard-container glass-panel">
+    <!-- Breathing ambient glow elements -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="dashboard-container fade-in">
         <!-- Header -->
         <header class="header">
             <div class="header-info">
-                <h1><i class='bx bx-microchip'></i> ESP32 Agri Dashboard</h1>
+                <h1>
+                    🌾 Smart Agriculture Dashboard
+                    <i class='bx bxs-leaf animated-leaf'></i>
+                </h1>
+                <p class="subtitle">Real-time Farm Monitoring System</p>
                 <div class="status-indicator">
                     <div class="pulse-dot" id="connDot"></div>
-                    <p id="statusMessage" class="status-alert">Connecting to ESP32...</p>
+                    <span id="statusMessage" class="status-alert">🔴 Offline - Connecting...</span>
                 </div>
             </div>
             <div class="header-meta">
-                <div class="last-updated">
-                    <i class='bx bx-time-five'></i> <span id="lastUpdated">--:--:--</span>
-                </div>
+                <a href="#" class="cloud-btn pulse-glow">
+                    ☁️ Open Cloud Control
+                </a>
             </div>
         </header>
 
@@ -37,12 +54,12 @@
         <main class="cards-grid">
             
             <!-- Temperature Card -->
-            <div class="card glass-card" id="tempCard">
+            <div class="card organic-card" id="tempCard">
                 <div class="card-header">
                     <div class="icon-wrapper temp-icon">
                         <i class='bx bxs-thermometer'></i>
                     </div>
-                    <h3>Temperature</h3>
+                    <h3>🌡️ Field Temperature</h3>
                 </div>
                 <div class="card-body">
                     <div class="value-container">
@@ -53,12 +70,12 @@
             </div>
 
             <!-- Humidity Card -->
-            <div class="card glass-card" id="humCard">
+            <div class="card organic-card" id="humCard">
                 <div class="card-header">
                     <div class="icon-wrapper hum-icon">
                         <i class='bx bx-water'></i>
                     </div>
-                    <h3>Humidity</h3>
+                    <h3>💧 Air Humidity</h3>
                 </div>
                 <div class="card-body">
                     <div class="value-container">
@@ -68,70 +85,118 @@
                 </div>
             </div>
 
-            <!-- Controls Section -->
-            <div class="controls-group">
-                <!-- Mode Toggle -->
-                <div class="card glass-card control-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper mode-icon">
-                            <i class='bx bx-cog'></i>
-                        </div>
-                        <h3>System Mode</h3>
+            <!-- Soil Moisture Card -->
+            <div class="card organic-card" id="soilCard">
+                <div class="card-header">
+                    <div class="icon-wrapper soil-moisture-icon">
+                        <i class='bx bx-spa'></i>
                     </div>
-                    <div class="card-body controls">
-                        <span class="control-label inactive" id="modeLabel">Manual</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
+                    <h3>🌱 Soil Moisture Status</h3>
                 </div>
-
-                <!-- Water Motor Toggle -->
-                <div class="card glass-card control-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper pump-icon">
-                            <i class='bx bx-droplet'></i>
-                        </div>
-                        <h3>Water Motor</h3>
-                    </div>
-                    <div class="card-body controls">
-                        <span class="control-label inactive" id="waterLabel">OFF</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="waterToggle" onchange="toggleControl('water')">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Soil Motor Toggle -->
-                <div class="card glass-card control-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper soil-icon">
-                            <i class='bx bx-spa'></i>
-                        </div>
-                        <h3>Soil Motor</h3>
-                    </div>
-                    <div class="card-body controls">
-                        <span class="control-label inactive" id="soilLabel">OFF</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="soilToggle" onchange="toggleControl('soil')">
-                            <span class="slider round"></span>
-                        </label>
+                <div class="card-body">
+                    <div class="value-container">
+                        <span class="value" id="soilMoistureValue">--</span>
+                        <span class="unit">%</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Logs Card -->
-            <div class="card glass-card logs-card">
+            <!-- Water Tank Level Card -->
+            <div class="card organic-card" id="tankCard">
                 <div class="card-header">
-                    <div class="icon-wrapper logs-icon">
+                    <div class="icon-wrapper tank-icon">
+                        <i class='bx bx-cylinder'></i>
+                    </div>
+                    <h3>🪣 Water Tank Level</h3>
+                </div>
+                <div class="card-body">
+                    <div class="value-container">
+                        <span class="value" id="tankLevelValue">--</span>
+                        <span class="unit">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="card organic-card chart-card">
+                <div class="card-header">
+                    <div class="icon-wrapper chart-icon">
+                        <i class='bx bx-trending-up'></i>
+                    </div>
+                    <h3>📈 Environmental Trends</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="farmChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="controls-group">
+                <!-- Mode Toggle -->
+                <div class="card organic-card control-card">
+                    <div class="card-header">
+                        <div class="icon-wrapper mode-icon">
+                            <i class='bx bx-cog'></i>
+                        </div>
+                        <h3>⚙️ Farming Mode</h3>
+                    </div>
+                    <div class="card-body controls">
+                        <span class="control-label inactive" id="modeLabel">Manual</span>
+                        <label class="eco-toggle">
+                            <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
+                            <span class="slider round ripple"></span>
+                        </label>
+                    </div>
+                    <p class="control-desc">Auto Farming Mode</p>
+                </div>
+
+                <!-- Irrigation Pump Toggle -->
+                <div class="card organic-card control-card">
+                    <div class="card-header">
+                        <div class="icon-wrapper pump-icon">
+                            <i class='bx bx-droplet'></i>
+                        </div>
+                        <h3>🚿 Irrigation Pump</h3>
+                    </div>
+                    <div class="card-body controls">
+                        <span class="control-label inactive" id="waterLabel">OFF</span>
+                        <label class="eco-toggle">
+                            <input type="checkbox" id="waterToggle" onchange="toggleControl('water')">
+                            <span class="slider round ripple"></span>
+                        </label>
+                    </div>
+                    <p class="control-desc">Irrigation Control</p>
+                </div>
+
+                <!-- Soil Motor Toggle -->
+                <div class="card organic-card control-card">
+                    <div class="card-header">
+                        <div class="icon-wrapper motor-icon">
+                            <i class='bx bx-slider'></i>
+                        </div>
+                        <h3>🚜 Water Tank Motor</h3>
+                    </div>
+                    <div class="card-body controls">
+                        <span class="control-label inactive" id="soilLabel">OFF</span>
+                        <label class="eco-toggle">
+                            <input type="checkbox" id="soilToggle" onchange="toggleControl('soil')">
+                            <span class="slider round ripple"></span>
+                        </label>
+                    </div>
+                    <p class="control-desc">Water Tank Motor</p>
+                </div>
+            </div>
+
+            <!-- Serial Monitor Section -->
+            <div class="card organic-card logs-card">
+                <div class="card-header">
+                    <div class="icon-wrapper terminal-icon">
                         <i class='bx bx-terminal'></i>
                     </div>
-                    <h3>System Logs</h3>
+                    <h3>🖥️ Farm System Logs</h3>
                 </div>
                 <div class="logs-container">
-                    <pre id="systemLogs">Waiting for logs...</pre>
+                    <pre id="systemLogs">Waiting for field station telemetry...</pre>
                 </div>
             </div>
 
