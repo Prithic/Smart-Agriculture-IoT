@@ -71,6 +71,16 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 .node-tank-active { border-color: #4CAF50 !important; color: #4CAF50 !important; background: #e8f5e9 !important; box-shadow: 0 0 20px rgba(76, 175, 80, 0.4); transform: scale(1.08); }
 .node-field-active { border-color: var(--primary) !important; color: var(--primary) !important; background: var(--primary-soft) !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.4); transform: scale(1.08); }
 
+/* Dynamic Tank */
+.tank-visual { width: 70px; height: 90px; border: 3px solid #d1d5db; border-radius: 6px 6px 12px 12px; background: #f9fafb; position: relative; overflow: hidden; box-shadow: inset 0 4px 8px rgba(0,0,0,0.05), 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; align-items: flex-end; margin: 0 auto; transition: all 0.3s; z-index: 2; }
+.tank-visual.node-tank-active { border-color: #4CAF50; box-shadow: 0 0 20px rgba(76, 175, 80, 0.4), inset 0 4px 8px rgba(0,0,0,0.05); transform: scale(1.08); }
+.tank-water { width: 100%; height: 50%; background: linear-gradient(180deg, #81c784 0%, #388e3c 100%); position: absolute; bottom: 0; left: 0; transition: height 1s ease-in-out, background 0.5s; border-radius: 0 0 8px 8px; }
+.tank-water::before { content: ""; position: absolute; top: -8px; left: -100%; width: 200%; height: 8px; background-image: radial-gradient(circle at 10px 4px, transparent 10px, rgba(255,255,255,0.4) 11px); background-size: 20px 10px; animation: waveAnim 1.5s linear infinite; }
+.tank-water.alert-level { background: linear-gradient(180deg, #f87171 0%, #dc2626 100%); }
+.tank-water.alert-level::before { background-image: radial-gradient(circle at 10px 4px, transparent 10px, rgba(255,255,255,0.2) 11px); }
+
+@keyframes waveAnim { 0% { transform: translateX(0); } 100% { transform: translateX(20px); } }
+
 /* Shimmer Flow Path */
 .shimmer-path { flex: 1; height: 12px; background: #e5e7eb; position: relative; display: flex; align-items: center; border-radius: 10px; overflow: hidden; margin: 0 1rem; top: -15px; z-index: 1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
 .shimmer-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s; border-radius: 10px; }

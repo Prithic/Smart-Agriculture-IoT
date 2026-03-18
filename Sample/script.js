@@ -18,11 +18,12 @@ const pathWellTank = document.getElementById('path-well-tank');
 const pathTankField = document.getElementById('path-tank-field');
 
 const nodeWellIcon = document.querySelector('#node-well .node-icon');
-const nodeTankIcon = document.querySelector('#node-tank .node-icon');
+const nodeTankIcon = document.getElementById('tankVisual');
 const nodeFieldIcon = document.querySelector('#node-field .node-icon');
 
 const nodeTankStatus = document.getElementById('node-tank-status');
 const nodeFieldStatus = document.getElementById('node-field-status');
+const tankWaterLevel = document.getElementById('tankWaterLevel');
 
 // Sensor Panels
 const tempValue = document.getElementById('tempValue');
@@ -100,15 +101,23 @@ function updateUI(data) {
     const tank = parseFloat(data.tankLevel);
     const moist = parseFloat(data.soilMoisture);
     
+    // Set Tank Level Height Dynamically
+    if(tankWaterLevel) {
+        let validTank = Math.max(0, Math.min(100, tank));
+        tankWaterLevel.style.height = validTank + "%";
+    }
+
     // 2. Tank Badge & Diagnostic Map Logic
     if (tank < 30) {
         nodeTankStatus.className = "node-state badge-alert";
         nodeTankStatus.innerText = "LOW";
         tankValue.classList.add('alert-text');
+        if(tankWaterLevel) tankWaterLevel.classList.add('alert-level');
     } else {
         nodeTankStatus.className = `node-state ${tank > 90 ? 'badge-ok' : 'badge-warn'}`;
         nodeTankStatus.innerText = `${tank.toFixed(0)}%`;
         tankValue.classList.remove('alert-text');
+        if(tankWaterLevel) tankWaterLevel.classList.remove('alert-level');
     }
 
     if (moist < 35) {
