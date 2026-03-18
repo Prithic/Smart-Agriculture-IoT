@@ -14,8 +14,8 @@ const modeToggle = document.getElementById('modeToggle');
 const modeLabelHeader = document.getElementById('modeLabelHeader');
 
 // Map Flow Elements
-const pathWellTank = document.getElementById('path-well-tank');
-const pathTankField = document.getElementById('path-tank-field');
+const pathWellTank = document.getElementById('svg-flow-t');
+const pathTankField = document.getElementById('svg-flow-i');
 
 const nodeWellIcon = document.querySelector('#node-well .node-icon');
 const nodeTankIcon = document.querySelector('#node-tank .node-icon');
@@ -127,7 +127,7 @@ function updateUI(data) {
 
     // Tank Path
     if (isTankOn) {
-        pathWellTank.classList.add('path-active');
+        pathWellTank.classList.add('active');
         nodeWellIcon.classList.add('node-well-active');
         nodeTankIcon.classList.add('node-tank-active');
         tankControlItem.classList.add('active-outline');
@@ -135,7 +135,7 @@ function updateUI(data) {
         diagTank.innerText = "Filling";
         diagTank.className = "diag-value clr-blue";
     } else {
-        pathWellTank.classList.remove('path-active');
+        pathWellTank.classList.remove('active');
         nodeWellIcon.classList.remove('node-well-active');
         nodeTankIcon.classList.remove('node-tank-active');
         tankControlItem.classList.remove('active-outline');
@@ -146,7 +146,7 @@ function updateUI(data) {
 
     // Irr Path
     if (isIrrOn) {
-        pathTankField.classList.add('path-active');
+        pathTankField.classList.add('active');
         nodeFieldIcon.classList.add('node-field-active');
         nodeTankIcon.classList.add('node-tank-active'); // Tank is also active if giving water
         irrControlItem.classList.add('active-outline');
@@ -154,7 +154,7 @@ function updateUI(data) {
         diagIrr.innerText = "Irrigating";
         diagIrr.className = "diag-value clr-blue";
     } else {
-        pathTankField.classList.remove('path-active');
+        pathTankField.classList.remove('active');
         nodeFieldIcon.classList.remove('node-field-active');
         irrControlItem.classList.remove('active-outline');
 
