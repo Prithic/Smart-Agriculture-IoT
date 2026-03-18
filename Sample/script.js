@@ -1,12 +1,11 @@
 /**
- * ESP32 Smart Agriculture Dashboard Logic - Nature Theme
- * Real-time farm monitoring via simulated hardware endpoints
+ * ESP32 Smart Agriculture Logic - Real-world Architecture
+ * Tank Management + Irrigation Management
  */
 
 // ==========================================
 // 1. CONFIGURATION 
 // ==========================================
-// Base URL for the ESP32 server (Keep empty if hosted on ESP32 itself)
 const ESP32_BASE_URL = ""; 
 
 // ==========================================
@@ -20,17 +19,22 @@ const tankValue = document.getElementById('tankLevelValue');
 // Badges
 const tempBadge = document.getElementById('tempBadge');
 const humBadge = document.getElementById('humBadge');
-const soilBadge = document.getElementById('soilBadge');
-const tankBadge = document.getElementById('tankBadge');
 
+// Status Panels
+const tankStatusMessage = document.getElementById('tankStatusMessage');
+const tankStatusBox = document.getElementById('tankStatusBox');
+const irrigationStatusMessage = document.getElementById('irrigationStatusMessage');
+const irrigationStatusBox = document.getElementById('irrigationStatusBox');
+
+// Controls
 const modeToggle = document.getElementById('modeToggle');
 const modeLabel = document.getElementById('modeLabel');
 
-const waterToggle = document.getElementById('waterToggle');
-const waterLabel = document.getElementById('waterLabel');
+const tankToggle = document.getElementById('tankToggle');
+const tankMotorLabel = document.getElementById('tankMotorLabel');
 
-const soilToggle = document.getElementById('soilToggle');
-const soilLabel = document.getElementById('soilLabel');
+const irrigationToggle = document.getElementById('irrigationToggle');
+const irrigationMotorLabel = document.getElementById('irrigationMotorLabel');
 
 const systemLogs = document.getElementById('systemLogs');
 
@@ -41,10 +45,11 @@ const statusMessage = document.getElementById('statusMessage');
 let isUpdatingUI = false;
 let historyChart;
 
-// Helper: Animate Value Change
+// ==========================================
+// 3. HELPER FUNCTIONS
+// ==========================================
 function animateValue(obj, start, end, duration) {
     if(!obj) return;
-    // Don't animate if difference is tiny to avoid jitter
     if(Math.abs(end - parseFloat(obj.innerText)) < 0.5) {
         obj.innerText = end.toFixed(1);
         return;
@@ -65,7 +70,6 @@ function animateValue(obj, start, end, duration) {
     window.requestAnimationFrame(step);
 }
 
-// Helper: Update Badge
 function updateBadge(badgeElement, state, text) {
     if(!badgeElement) return;
     badgeElement.className = `status-badge badge-${state}`;
@@ -73,7 +77,7 @@ function updateBadge(badgeElement, state, text) {
 }
 
 // ==========================================
-// 3. CHART METRICS (Nature Theme Colors)
+// 4. CHART METRICS
 // ==========================================
 function initChart() {
     const ctx = document.getElementById('farmChart').getContext('2d');
@@ -103,7 +107,6 @@ function initChart() {
                     pointBackgroundColor: '#fff',
                     pointBorderColor: '#f59e0b',
                     pointRadius: 4,
-                    pointHoverRadius: 6,
                     fill: true,
                     tension: 0.4
                 },
@@ -116,7 +119,6 @@ function initChart() {
                     pointBackgroundColor: '#fff',
                     pointBorderColor: '#0ea5e9',
                     pointRadius: 4,
-                    pointHoverRadius: 6,
                     fill: true,
                     tension: 0.4
                 }
@@ -127,16 +129,6 @@ function initChart() {
             maintainAspectRatio: false,
             plugins: {
                 legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 10 } },
-                tooltip: {
-                    backgroundColor: 'rgba(10, 23, 16, 0.9)',
-                    titleColor: '#e2f1e5',
-                    bodyColor: '#e2f1e5',
-                    borderColor: 'rgba(34, 197, 94, 0.3)',
-                    borderWidth: 1,
-                    padding: 12,
-                    displayColors: true,
-                    usePointStyle: true,
-                }
             },
             scales: {
                 x: { grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false } },
@@ -161,7 +153,7 @@ function updateChart(temp, hum) {
 }
 
 // ==========================================
-// 4. API FETCHING & DATA HANDLING
+// 5. API FETCHING & DATA HANDLING
 // ==========================================
 
 async function fetchSensorData() {
@@ -175,15 +167,9 @@ async function fetchSensorData() {
             data = await response.json();
         } catch(e) {
             isSimulated = true;
-            data = {
-                temperature: (Math.random() * 5 + 25).toFixed(1),
-                humidity: (Math.random() * 10 + 50).toFixed(1),
-                soilMoisture: (Math.random() * 20 + 40).toFixed(1),
-                tankLevel: (Math.random() * 10 + 85).toFixed(1),
-                autoMode: modeToggle.checked ? 1 : 0,
-                waterMotor: waterToggle.checked ? 1 : 0,
-                soilMotor: soilToggle.checked ? 1 : 0
-            };
+            
+            // Generate simulated coherent data logic
+            data = generateSimulatedState();
         }
         
         updateDashboardUI(data);
@@ -202,22 +188,86 @@ async function fetchSensorData() {
     }
 }
 
+// Keep simulation stable for visual demo
+let simTank = 75;
+let simSoil = 45;
+
+function generateSimulatedState() {
+    const isAuto = modeToggle.checked ? 1 : 0;
+    
+    // Motor checks based on toggle states if manual
+    let tankMotor = tankToggle.checked ? 1 : 0;
+    let irrMotor = irrigationToggle.checked ? 1 : 0;
+
+    // Simulate auto logic loosely
+    if (isAuto) {
+        if (simTank < 30) tankMotor = 1;
+        if (simTank > 95) tankMotor = 0;
+        
+        if (simSoil < 35 && simTank > 10) irrMotor = 1;
+        if (simSoil > 70) irrMotor = 0;
+    }
+
+    // Adjust variables naturally
+    if (tankMotor) simTank += 2;
+    if (irrMotor) {
+        simTank -= 1;
+        simSoil += 1.5;
+    } else {
+        simSoil -= 0.2;
+    }
+    
+    // Clamping
+    if (simTank > 100) simTank = 100;
+    if (simTank < 0) simTank = 0;
+    if (simSoil > 100) simSoil = 100;
+    if (simSoil < 0) simSoil = 0;
+
+    return {
+        temperature: (Math.random() * 2 + 25).toFixed(1),
+        humidity: (Math.random() * 5 + 50).toFixed(1),
+        soilMoisture: simSoil.toFixed(1),
+        tankLevel: simTank.toFixed(1),
+        autoMode: isAuto,
+        tankMotor: tankMotor,
+        irrigationMotor: irrMotor
+    };
+}
+
+
 let mockLogLines = [];
+let lastLogEvent = "";
+
 function simulateLogs(data) {
     const time = new Date().toLocaleTimeString([], { hour12: false });
     
     if (mockLogLines.length === 0) {
-        mockLogLines.push(`[${time}] 🌾 Farm Control System OS v3.1 Booted.`);
-        mockLogLines.push(`[${time}] 🌱 Telemetry nodes actively broadcasting...`);
+        mockLogLines.push(`[${time}] 🌾 Base Station Booted.`);
+        mockLogLines.push(`[${time}] 🌱 Flow controllers calibrated.`);
     }
 
-    if (Math.random() > 0.7) {
-        let alerts = [];
-        if(parseFloat(data.temperature) > 29.5) alerts.push("TEMP WARN");
-        if(parseFloat(data.tankLevel) < 20) alerts.push("TANK LOW");
-        
-        let msg = `[${time}] RECV: T:${data.temperature}°C H:${data.humidity}% SM:${data.soilMoisture}% | ${alerts.length ? '⚠️ ' + alerts.join(', ') : '✅ OK'}`;
-        mockLogLines.push(msg);
+    // Event-based logging
+    if (data.tankMotor === 1 && lastLogEvent !== "tank_on") {
+        mockLogLines.push(`[${time}] 💧 WELL PUMP: Tank filling started (Level: ${data.tankLevel}%)`);
+        lastLogEvent = "tank_on";
+    }
+    if (data.tankMotor === 0 && lastLogEvent === "tank_on") {
+        mockLogLines.push(`[${time}] 🛑 WELL PUMP: Tank filling stopped (Level: ${data.tankLevel}%)`);
+        lastLogEvent = "tank_off";
+    }
+
+    if (data.irrigationMotor === 1 && lastLogEvent !== "irr_on") {
+        mockLogLines.push(`[${time}] 🚿 IRRIGATION: Valve opened to field (Soil: ${data.soilMoisture}%)`);
+        lastLogEvent = "irr_on";
+    }
+    if (data.irrigationMotor === 0 && lastLogEvent === "irr_on") {
+        mockLogLines.push(`[${time}] 🛑 IRRIGATION: Valve closed. Soil moisture optimal.`);
+        lastLogEvent = "irr_off";
+    }
+
+    // Periodic heartbeat
+    if (Math.random() > 0.9) {
+        mockLogLines.push(`[${time}] INFO: Heartbeat normal. T:${data.temperature}°C`);
     }
 
     if (mockLogLines.length > 25) mockLogLines.shift();
@@ -243,7 +293,7 @@ async function fetchLogs() {
 }
 
 // ==========================================
-// 5. UI RENDER LOGIC
+// 6. UI RENDER LOGIC
 // ==========================================
 
 function updateDashboardUI(data) {
@@ -255,14 +305,11 @@ function updateDashboardUI(data) {
     animateValue(soilValue, parseFloat(soilValue.innerText) || 0, parseFloat(data.soilMoisture || 0), 500);
     animateValue(tankValue, parseFloat(tankValue.innerText) || 0, parseFloat(data.tankLevel || 0), 500);
     
-    // Evaluate rules for Status Badges
+    // Environmental Alerts
     const temp = parseFloat(data.temperature);
     if(temp >= 35) {
         tempValue.classList.add("alert");
         updateBadge(tempBadge, 'alert', 'CRITICALLY HOT 🔴');
-    } else if (temp >= 28) {
-        tempValue.classList.remove("alert");
-        updateBadge(tempBadge, 'warning', 'WARM ☀️');
     } else {
         tempValue.classList.remove("alert");
         updateBadge(tempBadge, 'normal', 'OPTIMAL 🌱');
@@ -270,36 +317,61 @@ function updateDashboardUI(data) {
 
     const hum = parseFloat(data.humidity);
     if(hum < 30) updateBadge(humBadge, 'alert', 'TOO DRY 🏜️');
-    else if(hum > 80) updateBadge(humBadge, 'warning', 'HUMID 🌧️');
     else updateBadge(humBadge, 'normal', 'BALANCED 💧');
 
-    const moist = parseFloat(data.soilMoisture);
-    if(moist < 30) updateBadge(soilBadge, 'alert', 'DRY SOIL 🏜️');
-    else updateBadge(soilBadge, 'normal', 'HYDRATED 🌱');
-
+    // System Status Logic (IMPORTANT)
     const tank = parseFloat(data.tankLevel);
-    if(tank < 20) {
+    const isTankMotorOn = data.tankMotor === 1;
+    
+    if (tank < 30) {
         tankValue.classList.add("alert");
-        updateBadge(tankBadge, 'alert', 'REFILL URGENT ⚠️');
-    } else if(tank > 85) {
+        tankStatusBox.className = "status-message-box msg-alert";
+        tankStatusMessage.innerHTML = "⚠️ Tank Low – Refill Required";
+    } else if (tank > 90) {
         tankValue.classList.remove("alert");
-        updateBadge(tankBadge, 'normal', 'TANK FULL 🌊');
+        tankStatusBox.className = "status-message-box msg-normal";
+        tankStatusMessage.innerHTML = "✅ Tank Full – Motor Stopped";
     } else {
         tankValue.classList.remove("alert");
-        updateBadge(tankBadge, 'normal', 'CAPACITY OK ✔️');
+        if (isTankMotorOn) {
+            tankStatusBox.className = "status-message-box msg-active";
+            tankStatusMessage.innerHTML = "🔄 Tank Filling from Well...";
+        } else {
+            tankStatusBox.className = "status-message-box msg-normal";
+            tankStatusMessage.innerHTML = "✔️ Capacity Stable – System Idle";
+        }
     }
+
+    const moist = parseFloat(data.soilMoisture);
+    const isIrrOn = data.irrigationMotor === 1;
+
+    if (moist < 35) {
+        irrigationStatusBox.className = "status-message-box msg-warning";
+        irrigationStatusMessage.innerHTML = "🏜️ Soil Dry – Irrigation Required";
+    } else if (isIrrOn) {
+        irrigationStatusBox.className = "status-message-box msg-active";
+        irrigationStatusMessage.innerHTML = "🚿 Field Irrigation Active...";
+    } else {
+        irrigationStatusBox.className = "status-message-box msg-normal";
+        irrigationStatusMessage.innerHTML = "💧 Soil Moist – System Idle";
+    }
+
+    // Highlight row if motor is actively running
+    const tankRow = tankToggle.closest('.control-row');
+    const irrRow = irrigationToggle.closest('.control-row');
+    
+    isTankMotorOn ? tankRow.classList.add('active-state') : tankRow.classList.remove('active-state');
+    isIrrOn ? irrRow.classList.add('active-state') : irrRow.classList.remove('active-state');
 
     // Controls sync
     const isAuto = data.autoMode === 1;
-    const isWaterOn = data.waterMotor === 1;
-    const isSoilOn = data.soilMotor === 1;
 
-    updateToggleUI(modeToggle, modeLabel, isAuto, "Auto System Mode 🤖", "Manual Setup 🧑‍🌾");
-    updateToggleUI(waterToggle, waterLabel, isWaterOn, "Pump Flowing 🌊", "Pump Offline ❌");
-    updateToggleUI(soilToggle, soilLabel, isSoilOn, "Motor Active ⚙️", "Motor Offline ❌");
+    updateToggleUI(modeToggle, modeLabel, isAuto, "Auto System Mode 🤖", "Manual Override 🧑‍🌾");
+    updateToggleUI(tankToggle, tankMotorLabel, isTankMotorOn, "PUMP ACTIVE ✨", "PUMP OFFLINE ❌");
+    updateToggleUI(irrigationToggle, irrigationMotorLabel, isIrrOn, "VALVE OPEN 🌊", "VALVE CLOSED ❌");
 
-    waterToggle.disabled = isAuto;
-    soilToggle.disabled = isAuto;
+    tankToggle.disabled = isAuto;
+    irrigationToggle.disabled = isAuto;
 
     isUpdatingUI = false;
 }
@@ -313,7 +385,7 @@ function updateToggleUI(checkbox, label, isChecked, textOn, textOff) {
 function setConnectionStatus(isOnline, isSimulated = false) {
     if(isOnline) {
         connDot.className = "pulse-dot online";
-        statusMessage.innerText = isSimulated ? "🟢 Telemetry Established (Simulation)" : "🟢 Live Array Connected";
+        statusMessage.innerText = isSimulated ? "🟢 Edge Array Linked (Simulated)" : "🟢 Live Array Connected";
         statusMessage.className = "status-normal";
     } else {
         connDot.className = "pulse-dot error";
@@ -323,7 +395,7 @@ function setConnectionStatus(isOnline, isSimulated = false) {
 }
 
 // ==========================================
-// 6. CONTROL SIGNALING
+// 7. CONTROL SIGNALING
 // ==========================================
 async function toggleControl(type) {
     if (isUpdatingUI) return; 
@@ -333,20 +405,20 @@ async function toggleControl(type) {
 
     if (type === 'auto') {
         value = modeToggle.checked ? 1 : 0;
-        updateToggleUI(modeToggle, modeLabel, value === 1, "Auto System Mode 🤖", "Manual Setup 🧑‍🌾");
-        waterToggle.disabled = (value === 1);
-        soilToggle.disabled = (value === 1);
+        updateToggleUI(modeToggle, modeLabel, value === 1, "Auto System Mode 🤖", "Manual Override 🧑‍🌾");
+        tankToggle.disabled = (value === 1);
+        irrigationToggle.disabled = (value === 1);
         appendLog(`[OVERRIDE] Agent shifted telemetry to: ${value ? 'AUTONOMOUS' : 'MANUAL'}`);
     } 
-    else if (type === 'water') {
-        value = waterToggle.checked ? 1 : 0;
-        updateToggleUI(waterToggle, waterLabel, value === 1, "Pump Flowing 🌊", "Pump Offline ❌");
-        appendLog(`[COMMAND] Main Irrigation Valves: ${value ? 'OPENED' : 'CLOSED'}`);
+    else if (type === 'tank') {
+        value = tankToggle.checked ? 1 : 0;
+        updateToggleUI(tankToggle, tankMotorLabel, value === 1, "PUMP ACTIVE ✨", "PUMP OFFLINE ❌");
+        appendLog(`[MANUAL COMMAND] Tank Well Pump: ${value ? 'ENGAGED' : 'HALTED'}`);
     } 
-    else if (type === 'soil') {
-        value = soilToggle.checked ? 1 : 0;
-        updateToggleUI(soilToggle, soilLabel, value === 1, "Motor Active ⚙️", "Motor Offline ❌");
-        appendLog(`[COMMAND] Auxillary Nutrient Motors: ${value ? 'ENGAGED' : 'HALTED'}`);
+    else if (type === 'irrigation') {
+        value = irrigationToggle.checked ? 1 : 0;
+        updateToggleUI(irrigationToggle, irrigationMotorLabel, value === 1, "VALVE OPEN 🌊", "VALVE CLOSED ❌");
+        appendLog(`[MANUAL COMMAND] Field Irrigation Valve: ${value ? 'OPENED' : 'CLOSED'}`);
     }
 
     try {
@@ -356,6 +428,7 @@ async function toggleControl(type) {
         fetchSensorData();
     } catch (e) {
         // Soft fail for simulation
+        fetchSensorData(); 
     }
 }
 
@@ -368,7 +441,7 @@ function appendLog(text) {
 }
 
 // ==========================================
-// 7. INITIALIZATION
+// 8. INITIALIZATION
 // ==========================================
 window.onload = () => {
     initChart();
