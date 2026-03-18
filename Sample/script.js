@@ -112,12 +112,10 @@ function updateUI(data) {
         nodeTankStatus.className = "node-state badge-alert";
         nodeTankStatus.innerText = "LOW";
         tankValue.classList.add('alert-text');
-        if(tankWaterLevel) tankWaterLevel.classList.add('alert-level');
     } else {
         nodeTankStatus.className = `node-state ${tank > 90 ? 'badge-ok' : 'badge-warn'}`;
         nodeTankStatus.innerText = `${tank.toFixed(0)}%`;
         tankValue.classList.remove('alert-text');
-        if(tankWaterLevel) tankWaterLevel.classList.remove('alert-level');
     }
 
     if (moist < 35) {

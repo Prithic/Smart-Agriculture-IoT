@@ -76,8 +76,6 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 .tank-visual.node-tank-active { border-color: var(--blue-water); box-shadow: 0 0 24px rgba(14, 165, 233, 0.4), inset 0 4px 8px rgba(0,0,0,0.05); transform: scale(1.08); }
 .tank-water { width: 100%; height: 50%; background: linear-gradient(180deg, #7dd3fc 0%, #0284c7 100%); position: absolute; bottom: 0; left: 0; transition: height 1s ease-in-out, background 0.5s; border-radius: 0 0 12px 12px; }
 .tank-water::before { content: ""; position: absolute; top: -8px; left: -100%; width: 200%; height: 8px; background-image: radial-gradient(circle at 10px 4px, transparent 10px, rgba(255,255,255,0.4) 11px); background-size: 20px 10px; animation: waveAnim 1.5s linear infinite; }
-.tank-water.alert-level { background: linear-gradient(180deg, #f87171 0%, #dc2626 100%); }
-.tank-water.alert-level::before { background-image: radial-gradient(circle at 10px 4px, transparent 10px, rgba(255,255,255,0.2) 11px); }
 
 @keyframes waveAnim { 0% { transform: translateX(0); } 100% { transform: translateX(20px); } }
 
