@@ -3,249 +3,218 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Agriculture Dashboard</title>
-    <!-- Boxicons for modern icons -->
+    <title>Smart Agriculture System</title>
+    <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Abstract Nature SVG Backgrounds -->
-    <div class="bg-waves">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="wave wave-top">
-            <path fill="rgba(46, 125, 50, 0.03)" d="M0,160L48,170.7C96,181,192,203,288,181.3C384,160,480,96,576,90.7C672,85,768,139,864,144C960,149,1056,107,1152,106.7C1248,107,1344,149,1392,170.7L1440,192L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
-        </svg>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="wave wave-bottom">
-            <path fill="rgba(46, 125, 50, 0.05)" d="M0,224L48,213.3C96,203,192,181,288,186.7C384,192,480,224,576,213.3C672,203,768,149,864,138.7C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-    </div>
-
-    <!-- Breathing ambient glow elements -->
-    <div class="ambient-glow glow-1"></div>
-    <div class="ambient-glow glow-2"></div>
-
-    <div class="dashboard-container fade-in">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-info">
-                <h1>
-                    🌾 Smart Agriculture System
-                    <i class='bx bxs-leaf animated-leaf'></i>
-                </h1>
-                <p class="subtitle">IoT Based Farm Monitoring & Automation</p>
-                <div class="status-indicator">
-                    <div class="pulse-dot" id="connDot"></div>
-                    <span id="statusMessage" class="status-alert">🔴 Offline - Connecting...</span>
+    
+    <div class="app-layout">
+        
+        <!-- HEADER -->
+        <header class="top-bar">
+            <div class="brand">
+                <div class="brand-icon"><i class='bx bxs-leaf'></i></div>
+                <div class="brand-text">
+                    <h1>Smart Agriculture System</h1>
+                    <span>IoT-Based Farm Automation</span>
                 </div>
             </div>
             <div class="header-actions">
-                <div class="global-mode-header">
-                    <span class="mode-text">SYSTEM MODE:</span>
-                    <span class="control-label inactive" id="modeLabel" style="font-size: 1rem;">MANUAL</span>
-                    <label class="eco-toggle header-toggle">
+                <div class="status-indicator">
+                    <div class="pulse-dot" id="connDot"></div>
+                    <span id="headerStatusMsg">Offline</span>
+                </div>
+                <div class="mode-toggle-group">
+                    <span class="mode-label" id="modeLabelHeader">MANUAL</span>
+                    <label class="switch">
                         <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
-                        <span class="slider round ripple"></span>
+                        <span class="slider round"></span>
                     </label>
                 </div>
             </div>
         </header>
 
-        <!-- Main Grid -->
-        <main class="systems-grid">
+        <!-- MAIN LAYOUT (60/40 Split) -->
+        <main class="main-grid">
+            
+            <!-- LEFT COLUMN (60%) -->
+            <div class="col-left">
+                
+                <!-- A. FARM FLOW VISUAL -->
+                <section class="card flow-card">
+                    <h2 class="card-title"><i class='bx bx-git-merge'></i> System Flow Topology</h2>
+                    <div class="flow-container">
+                        
+                        <!-- Well -->
+                        <div class="flow-node" id="node-well">
+                            <div class="node-icon"><i class='bx bx-cloud-rain'></i></div>
+                            <span class="node-name">Well Source</span>
+                            <span class="node-state badge-ok" id="node-well-status">Ready</span>
+                        </div>
 
-            <!-- Farm Map Section (Horizontal Flow) -->
-            <section class="system-section farm-map-section">
-                <h2 class="section-title">🗺️ Live Farm Topography & Flow</h2>
-                <div class="card organic-card farm-map-container">
-                    
-                    <div class="map-node" id="node-well">
-                        <div class="node-icon"><i class='bx bx-hive'></i></div>
-                        <div class="node-label">Deep Well</div>
-                        <div class="node-status badge-normal" id="status-well">Source OK</div>
-                    </div>
-                    
-                    <div class="map-flow" id="flow-well-tank">
-                        <div class="flow-particles"></div>
-                    </div>
-                    
-                    <div class="map-node" id="node-tank">
-                        <div class="node-icon"><i class='bx bx-cylinder'></i></div>
-                        <div class="node-label">Central Tank</div>
-                        <div class="node-status badge-warning" id="status-tank-map">--%</div>
-                    </div>
-                    
-                    <div class="map-flow" id="flow-tank-field">
-                        <div class="flow-particles"></div>
-                    </div>
-                    
-                    <div class="map-node" id="node-field">
-                        <div class="node-icon"><i class='bx bx-spa'></i></div>
-                        <div class="node-label">Crop Field</div>
-                        <div class="node-status badge-normal" id="status-field-map">--%</div>
-                    </div>
+                        <!-- Arrow/Line 1 -->
+                        <div class="flow-path" id="path-well-tank">
+                            <i class='bx bx-right-arrow-alt'></i>
+                        </div>
 
-                </div>
-            </section>
+                        <!-- Tank -->
+                        <div class="flow-node tank-node" id="node-tank">
+                            <div class="node-icon"><i class='bx bx-cylinder'></i></div>
+                            <span class="node-name">Main Tank</span>
+                            <span class="node-state badge-warn" id="node-tank-status">--%</span>
+                        </div>
 
-            <!-- Environment Section -->
-            <section class="system-section environment-section">
-                <h2 class="section-title">🌤️ Environmental Metrics</h2>
-                <div class="section-cards">
-                    <!-- Temperature Card -->
-                    <div class="card organic-card" id="tempCard">
-                        <div class="card-bg-gradient temp-bg"></div>
-                        <div class="card-header">
-                            <div class="icon-wrapper temp-icon"><i class='bx bxs-thermometer'></i></div>
-                            <div>
-                                <h3>🌡️ Field Temp</h3>
-                                <div class="status-badge badge-normal" id="tempBadge">Optimal</div>
+                        <!-- Arrow/Line 2 -->
+                        <div class="flow-path" id="path-tank-field">
+                            <i class='bx bx-right-arrow-alt'></i>
+                        </div>
+
+                        <!-- Field -->
+                        <div class="flow-node field-node" id="node-field">
+                            <div class="node-icon"><i class='bx bx-spa'></i></div>
+                            <span class="node-name">Crop Field</span>
+                            <span class="node-state badge-ok" id="node-field-status">--%</span>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- B. SENSOR DATA PANEL -->
+                <section class="card data-panel">
+                    <h2 class="card-title"><i class='bx bx-line-chart'></i> Real-Time Telemetry</h2>
+                    <div class="sensor-grid">
+                        
+                        <div class="data-box" id="tempBox">
+                            <div class="box-icon bg-orange"><i class='bx bxs-thermometer'></i></div>
+                            <div class="box-info">
+                                <span class="box-label">Field Temp</span>
+                                <div class="box-value"><span id="tempValue">--</span><small>°C</small></div>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <div class="value-container">
-                                <span class="value count-up" id="tempValue">--</span><span class="unit">°C</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Humidity Card -->
-                    <div class="card organic-card" id="humCard">
-                        <div class="card-bg-gradient hum-bg"></div>
-                        <div class="card-header">
-                            <div class="icon-wrapper hum-icon"><i class='bx bx-cloud'></i></div>
-                            <div>
-                                <h3>💧 Air Humidity</h3>
-                                <div class="status-badge badge-normal" id="humBadge">Ideal</div>
+                        <div class="data-box" id="humBox">
+                            <div class="box-icon bg-blue"><i class='bx bx-water'></i></div>
+                            <div class="box-info">
+                                <span class="box-label">Humidity</span>
+                                <div class="box-value"><span id="humValue">--</span><small>%</small></div>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <div class="value-container">
-                                <span class="value count-up" id="humValue">--</span><span class="unit">%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
 
-            <!-- Water Management System (Well to Tank) -->
-            <section class="system-section water-management-section featured-section">
-                <h2 class="section-title">🌊 Water Management System</h2>
-                <div class="card organic-card large-card system-card">
-                    <div class="card-bg-gradient tank-bg"></div>
+                        <div class="data-box" id="soilBox">
+                            <div class="box-icon bg-green"><i class='bx bx-leaf'></i></div>
+                            <div class="box-info">
+                                <span class="box-label">Soil Moisture</span>
+                                <div class="box-value"><span id="soilValue">--</span><small>%</small></div>
+                            </div>
+                        </div>
+
+                        <div class="data-box" id="tankLvlBox">
+                            <div class="box-icon bg-cyan"><i class='bx bx-droplet'></i></div>
+                            <div class="box-info">
+                                <span class="box-label">Tank Level</span>
+                                <div class="box-value"><span id="tankValue">--</span><small>%</small></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- RIGHT COLUMN (40%) -->
+            <div class="col-right">
+                
+                <!-- C. CONTROL PANEL -->
+                <section class="card control-panel">
+                    <h2 class="card-title"><i class='bx bx-slider'></i> Manual Controls</h2>
                     
-                    <div class="system-main-stats">
-                        <div class="system-stat-box">
-                            <div class="icon-wrapper tank-icon large-icon"><i class='bx bx-cylinder'></i></div>
-                            <div>
-                                <h3 class="stat-title">🪣 Water Tank Capacity</h3>
-                                <div class="value-container">
-                                    <span class="value count-up" id="tankLevelValue">--</span><span class="unit">%</span>
+                    <div class="control-list">
+                        <!-- Tank Motor -->
+                        <div class="control-item">
+                            <div class="ctrl-info">
+                                <i class='bx bx-water'></i>
+                                <div>
+                                    <span class="ctrl-name">Tank Fill Motor</span>
+                                    <span class="ctrl-status off" id="tankMotorBadge">OFF</span>
                                 </div>
                             </div>
+                            <label class="switch">
+                                <input type="checkbox" id="tankToggle" onchange="toggleControl('tank')">
+                                <span class="slider round"></span>
+                            </label>
                         </div>
-                        
-                        <div class="system-status-panel">
-                            <h4 class="panel-subtitle">System Status</h4>
-                            <div class="status-message-box" id="tankStatusBox">
-                                <i class='bx bx-info-circle'></i> <span id="tankStatusMessage">Reading...</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="system-controls">
-                        <div class="control-row">
-                            <div class="control-info">
-                                <h3>⚙️ Tank Filling Motor</h3>
-                                <p class="control-desc">Pumps water from well to primary tank.</p>
-                            </div>
-                            <div class="control-action">
-                                <span class="control-label inactive" id="tankMotorLabel">OFF</span>
-                                <label class="eco-toggle">
-                                    <input type="checkbox" id="tankToggle" onchange="toggleControl('tank')">
-                                    <span class="slider round ripple"></span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Irrigation System (Tank to Field) -->
-            <section class="system-section irrigation-section featured-section">
-                <h2 class="section-title">🌱 Field Irrigation System</h2>
-                <div class="card organic-card large-card system-card">
-                    <div class="card-bg-gradient soil-bg"></div>
-                    
-                    <div class="system-main-stats">
-                        <div class="system-stat-box">
-                            <div class="icon-wrapper soil-moisture-icon large-icon"><i class='bx bx-spa'></i></div>
-                            <div>
-                                <h3 class="stat-title">🌿 Soil Moisture</h3>
-                                <div class="value-container">
-                                    <span class="value count-up" id="soilMoistureValue">--</span><span class="unit">%</span>
+                        <!-- Irrigation Motor -->
+                        <div class="control-item">
+                            <div class="ctrl-info">
+                                <i class='bx bx-spray-can'></i>
+                                <div>
+                                    <span class="ctrl-name">Irrigation Motor</span>
+                                    <span class="ctrl-status off" id="irrMotorBadge">OFF</span>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="system-status-panel">
-                            <h4 class="panel-subtitle">System Status</h4>
-                            <div class="status-message-box" id="irrigationStatusBox">
-                                <i class='bx bx-info-circle'></i> <span id="irrigationStatusMessage">Reading...</span>
-                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="irrToggle" onchange="toggleControl('irrigation')">
+                                <span class="slider round"></span>
+                            </label>
                         </div>
                     </div>
+                </section>
 
-                    <div class="system-controls">
-                        <div class="control-row">
-                            <div class="control-info">
-                                <h3>🚿 Field Irrigation Motor</h3>
-                                <p class="control-desc">Distributes tank water to crop zones.</p>
-                            </div>
-                            <div class="control-action">
-                                <span class="control-label inactive" id="irrigationMotorLabel">OFF</span>
-                                <label class="eco-toggle">
-                                    <input type="checkbox" id="irrigationToggle" onchange="toggleControl('irrigation')">
-                                    <span class="slider round ripple"></span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+                <!-- D. SYSTEM STATUS PANEL -->
+                <section class="card status-panel">
+                    <h2 class="card-title"><i class='bx bx-info-circle'></i> Diagnostic Overview</h2>
+                    
+                    <ul class="diag-list">
+                        <li>
+                            <span class="diag-label">Active Mode</span>
+                            <span class="diag-value clr-dark" id="diagMode">MANUAL</span>
+                        </li>
+                        <li>
+                            <span class="diag-label">Well > Tank Intake</span>
+                            <span class="diag-value" id="diagTank">Idle</span>
+                        </li>
+                        <li>
+                            <span class="diag-label">Tank > Field Output</span>
+                            <span class="diag-value" id="diagIrr">Idle</span>
+                        </li>
+                        <li>
+                            <span class="diag-label">System Alerts</span>
+                            <span class="diag-value clr-green" id="diagAlerts">OK</span>
+                        </li>
+                    </ul>
+                </section>
 
-            <!-- Chart Section -->
-            <section class="system-section chart-section">
-                <div class="card organic-card chart-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper chart-icon"><i class='bx bx-trending-up'></i></div>
-                        <h3>📈 Microclimate Trends</h3>
+                <!-- E. MINI LOG / ACTIVITY PANEL -->
+                <section class="card log-panel">
+                    <h2 class="card-title"><i class='bx bx-list-ul'></i> Recent Activity</h2>
+                    <div class="log-box" id="activityLogs">
+                        <div class="log-entry sys">System initializing...</div>
                     </div>
-                    <div class="chart-container">
-                        <div class="live-streaming-indicator">
-                            <div class="stream-dot"></div> Live Data Edge Sync
-                        </div>
-                        <canvas id="farmChart"></canvas>
-                    </div>
-                </div>
-            </section>
+                </section>
 
-            <!-- Serial Monitor Section -->
-            <section class="system-section logs-section">
-                <div class="card organic-card logs-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper terminal-icon"><i class='bx bx-terminal'></i></div>
-                        <h3>🖥️ Farm Activity Log</h3>
-                    </div>
-                    <div class="logs-container">
-                        <pre id="systemLogs">Awaiting telemetry datastream...</pre>
-                    </div>
-                </div>
-            </section>
+            </div>
 
         </main>
+
+        <!-- FOOTER -->
+        <footer class="bottom-bar">
+            <div class="foot-col">
+                <i class='bx bx-network-chart'></i> <span id="footConn">Fetching configuration...</span>
+            </div>
+            <div class="foot-col center">
+                <i class='bx bx-time-five'></i> Last Updated: <span id="footTime">--:--:--</span>
+                <span class="loading-spinner" id="loadingSpinner"></span>
+            </div>
+            <div class="foot-col right">
+                <i class='bx bx-server'></i> Edge IP: <span id="footIp">192.168.x.x</span>
+            </div>
+        </footer>
+
     </div>
 
     <script src="script.js"></script>
