@@ -215,55 +215,87 @@ body {
     background: linear-gradient(135deg, #16a34a 0%, #059669 100%);
 }
 
-/* Grid Layout */
+/* Main Grid */
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     grid-gap: 1.5rem;
+    grid-auto-rows: minmax(min-content, max-content);
 }
 
-#tempCard, #humCard, #soilCard, #tankCard { grid-column: span 1; }
+/* Featured / Large Cards */
+.featured-card { 
+    grid-column: span 2; 
+    grid-row: span 2; 
+}
+#humCard, #soilCard, #tankCard { grid-column: span 1; }
 .chart-card { grid-column: 1 / span 4; }
 .controls-group { grid-column: 1 / span 4; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
 .logs-card { grid-column: 1 / span 4; }
 
-/* Organic Card Styling */
+/* Organic Card Styling (Realistic Glass) */
 .organic-card {
-    background: var(--card-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-color);
+    background: linear-gradient(145deg, rgba(16, 38, 23, 0.6), rgba(10, 25, 15, 0.4));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(74, 158, 87, 0.15);
     border-radius: var(--border-radius);
     padding: 1.8rem;
-    box-shadow: var(--shadow-soft);
+    box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.3),
+        inset 0 1px 1px rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: column;
-    transition: var(--transition);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
 .organic-card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(34, 197, 94, 0.4);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), var(--glow-green);
+    transform: translateY(-6px) scale(1.01);
+    border-color: rgba(34, 197, 94, 0.5);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), var(--glow-green);
+    z-index: 10;
 }
+
+/* Card Inner Gradients / Glows */
+.card-bg-gradient {
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    opacity: 0.1;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 0;
+}
+.organic-card:hover .card-bg-gradient { opacity: 0.25; }
+
+.temp-bg { background: radial-gradient(circle, var(--sun-orange) 0%, transparent 60%); }
+.hum-bg, .tank-bg { background: radial-gradient(circle, var(--water-blue) 0%, transparent 60%); }
+.soil-bg { background: radial-gradient(circle, var(--eco-green) 0%, transparent 60%); }
 
 .card-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.2rem;
     margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 2;
 }
 
 .icon-wrapper {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     color: #fff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 .temp-icon { background: var(--grad-temp); }
@@ -273,32 +305,54 @@ body {
 .chart-icon, .mode-icon, .pump-icon, .motor-icon, .terminal-icon { background: var(--grad-soil); }
 
 .card-header h3 {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 500;
     color: var(--text-secondary);
+    margin-bottom: 0.3rem;
 }
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid transparent;
+}
+.badge-normal { background: rgba(34, 197, 94, 0.15); color: var(--eco-green); border-color: rgba(34, 197, 94, 0.3); }
+.badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--sun-orange); border-color: rgba(245, 158, 11, 0.3); }
+.badge-alert { background: rgba(239, 68, 68, 0.15); color: var(--alert-red); border-color: rgba(239, 68, 68, 0.3); }
+
+.card-body { position: relative; z-index: 2; }
 
 .value-container {
     display: flex;
     align-items: baseline;
-    gap: 0.3rem;
+    gap: 0.5rem;
     margin-top: auto;
 }
 
 .value-container .value {
-    font-size: 3rem;
+    font-size: 3.5rem;
     font-weight: 700;
     color: #fff;
+    letter-spacing: -1px;
 }
 
+.featured-card .value-container .value { font-size: 5rem; }
+
 .value-container .unit {
-    font-size: 1.4rem;
-    font-weight: 500;
-    color: var(--eco-green);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
 /* Color alerts */
-.value.alert { color: var(--alert-red); }
+.value.alert { color: var(--alert-red); text-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
 
 /* Eco Toggles */
 .controls {
@@ -309,8 +363,9 @@ body {
 }
 
 .control-label {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 700;
+    transition: all 0.3s ease;
 }
 
 .control-label.active { color: var(--eco-green); text-shadow: var(--glow-green); }
@@ -318,8 +373,9 @@ body {
 
 .control-desc {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     margin-top: 1rem;
+    line-height: 1.4;
 }
 
 .eco-toggle {
@@ -339,6 +395,7 @@ body {
     border: 1px solid rgba(255,255,255,0.1);
     transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 36px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
 }
 
 .slider:before {
@@ -349,6 +406,7 @@ body {
     background-color: var(--text-secondary);
     transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 input:checked + .slider {
@@ -362,17 +420,34 @@ input:checked + .slider:before {
     box-shadow: 0 0 15px var(--eco-green);
 }
 
-input:disabled + .slider {
-    opacity: 0.3;
-    cursor: not-allowed;
+input:disabled + .slider { opacity: 0.3; cursor: not-allowed; }
+
+/* Chart Additions */
+.live-streaming-indicator {
+    position: absolute;
+    top: -45px;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--eco-green);
+    font-weight: 600;
 }
 
-/* Add ripple effect visually on the parent */
-.eco-toggle .ripple {
-    overflow: visible;
+.stream-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--eco-green);
+    border-radius: 50%;
+    animation: flash 1s infinite alternate;
 }
 
-/* Chart */
+@keyframes flash {
+    0% { opacity: 0.3; }
+    100% { opacity: 1; box-shadow: 0 0 8px var(--eco-green); }
+}
+
 .chart-container {
     flex: 1;
     width: 100%;
@@ -382,26 +457,25 @@ input:disabled + .slider {
 
 /* Serial Monitor / Logs */
 .logs-container {
-    background: #020617;
+    background: rgba(2, 6, 23, 0.7);
     border-radius: 16px;
     padding: 1.5rem;
     height: 250px;
     overflow-y: auto;
-    border: 1px solid rgba(34, 197, 94, 0.2);
+    border: 1px solid rgba(34, 197, 94, 0.15);
     box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
 }
 
 #systemLogs {
     color: #4ade80;
     font-family: 'Courier New', Courier, monospace;
     font-size: 0.95rem;
-    line-height: 1.5;
+    line-height: 1.6;
     white-space: pre-wrap;
     word-wrap: break-word;
-    text-shadow: 0 0 5px rgba(74, 222, 128, 0.3);
 }
 
-/* Custom Scrollbar for Logs */
 .logs-container::-webkit-scrollbar { width: 8px; }
 .logs-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 8px; }
 .logs-container::-webkit-scrollbar-thumb { background: rgba(34, 197, 94, 0.4); border-radius: 8px; }
@@ -410,7 +484,8 @@ input:disabled + .slider {
 /* Mobile Responsive */
 @media (max-width: 1200px) {
     .cards-grid { grid-template-columns: repeat(2, 1fr); }
-    #tempCard, #humCard, #soilCard, #tankCard { grid-column: span 1; }
+    .featured-card { grid-column: span 2; }
+    #humCard, #soilCard, #tankCard { grid-column: span 1; }
     .chart-card { grid-column: 1 / span 2; }
     .controls-group { grid-column: 1 / span 2; grid-template-columns: repeat(2, 1fr); }
     .logs-card { grid-column: 1 / span 2; }
@@ -420,8 +495,10 @@ input:disabled + .slider {
     body { padding: 1rem; }
     .header { flex-direction: column; align-items: flex-start; }
     .cards-grid { grid-template-columns: 1fr; }
+    .featured-card { grid-column: 1; grid-row: span 1; }
     #tempCard, #humCard, #soilCard, #tankCard { grid-column: 1; }
     .chart-card, .logs-card, .controls-group { grid-column: 1; }
     .controls-group { grid-template-columns: 1fr; }
     .organic-card { padding: 1.5rem; }
+    .featured-card .value-container .value { font-size: 3.5rem; }
 }

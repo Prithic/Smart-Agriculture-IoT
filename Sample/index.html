@@ -53,17 +53,21 @@
         <!-- Main Grid -->
         <main class="cards-grid">
             
-            <!-- Temperature Card -->
-            <div class="card organic-card" id="tempCard">
+            <!-- Temperature Card (Featured/Large) -->
+            <div class="card organic-card featured-card" id="tempCard">
+                <div class="card-bg-gradient temp-bg"></div>
                 <div class="card-header">
                     <div class="icon-wrapper temp-icon">
                         <i class='bx bxs-thermometer'></i>
                     </div>
-                    <h3>🌡️ Field Temperature</h3>
+                    <div>
+                        <h3>🌡️ Field Temperature</h3>
+                        <div class="status-badge badge-normal" id="tempBadge">Optimal Range</div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="value-container">
-                        <span class="value" id="tempValue">--</span>
+                        <span class="value count-up" id="tempValue">--</span>
                         <span class="unit">°C</span>
                     </div>
                 </div>
@@ -71,15 +75,19 @@
 
             <!-- Humidity Card -->
             <div class="card organic-card" id="humCard">
+                <div class="card-bg-gradient hum-bg"></div>
                 <div class="card-header">
                     <div class="icon-wrapper hum-icon">
                         <i class='bx bx-water'></i>
                     </div>
-                    <h3>💧 Air Humidity</h3>
+                    <div>
+                        <h3>💧 Air Humidity</h3>
+                        <div class="status-badge badge-normal" id="humBadge">Ideal</div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="value-container">
-                        <span class="value" id="humValue">--</span>
+                        <span class="value count-up" id="humValue">--</span>
                         <span class="unit">%</span>
                     </div>
                 </div>
@@ -87,15 +95,19 @@
 
             <!-- Soil Moisture Card -->
             <div class="card organic-card" id="soilCard">
+                <div class="card-bg-gradient soil-bg"></div>
                 <div class="card-header">
                     <div class="icon-wrapper soil-moisture-icon">
                         <i class='bx bx-spa'></i>
                     </div>
-                    <h3>🌱 Soil Moisture Status</h3>
+                    <div>
+                        <h3>🌱 Soil Moisture</h3>
+                        <div class="status-badge badge-warning" id="soilBadge">Checking...</div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="value-container">
-                        <span class="value" id="soilMoistureValue">--</span>
+                        <span class="value count-up" id="soilMoistureValue">--</span>
                         <span class="unit">%</span>
                     </div>
                 </div>
@@ -103,15 +115,19 @@
 
             <!-- Water Tank Level Card -->
             <div class="card organic-card" id="tankCard">
+                <div class="card-bg-gradient tank-bg"></div>
                 <div class="card-header">
                     <div class="icon-wrapper tank-icon">
                         <i class='bx bx-cylinder'></i>
                     </div>
-                    <h3>🪣 Water Tank Level</h3>
+                    <div>
+                        <h3>🪣 Tank Level</h3>
+                        <div class="status-badge badge-normal" id="tankBadge">Checking...</div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="value-container">
-                        <span class="value" id="tankLevelValue">--</span>
+                        <span class="value count-up" id="tankLevelValue">--</span>
                         <span class="unit">%</span>
                     </div>
                 </div>
@@ -126,6 +142,9 @@
                     <h3>📈 Environmental Trends</h3>
                 </div>
                 <div class="chart-container">
+                    <div class="live-streaming-indicator">
+                        <div class="stream-dot"></div> Live Data Streaming
+                    </div>
                     <canvas id="farmChart"></canvas>
                 </div>
             </div>
@@ -138,16 +157,16 @@
                         <div class="icon-wrapper mode-icon">
                             <i class='bx bx-cog'></i>
                         </div>
-                        <h3>⚙️ Farming Mode</h3>
+                        <h3>⚙️ Farming System Mode</h3>
                     </div>
                     <div class="card-body controls">
-                        <span class="control-label inactive" id="modeLabel">Manual</span>
+                        <span class="control-label inactive" id="modeLabel">Manual Setup 🧑‍🌾</span>
                         <label class="eco-toggle">
                             <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
                             <span class="slider round ripple"></span>
                         </label>
                     </div>
-                    <p class="control-desc">Auto Farming Mode</p>
+                    <p class="control-desc">Engage fully autonomous watering based on telemetry.</p>
                 </div>
 
                 <!-- Irrigation Pump Toggle -->
@@ -156,16 +175,16 @@
                         <div class="icon-wrapper pump-icon">
                             <i class='bx bx-droplet'></i>
                         </div>
-                        <h3>🚿 Irrigation Pump</h3>
+                        <h3>🚿 Field Irrigation Pump</h3>
                     </div>
                     <div class="card-body controls">
-                        <span class="control-label inactive" id="waterLabel">OFF</span>
+                        <span class="control-label inactive" id="waterLabel">Pump Offline ❌</span>
                         <label class="eco-toggle">
                             <input type="checkbox" id="waterToggle" onchange="toggleControl('water')">
                             <span class="slider round ripple"></span>
                         </label>
                     </div>
-                    <p class="control-desc">Irrigation Control</p>
+                    <p class="control-desc">Manual override for main water lines.</p>
                 </div>
 
                 <!-- Soil Motor Toggle -->
@@ -174,16 +193,16 @@
                         <div class="icon-wrapper motor-icon">
                             <i class='bx bx-slider'></i>
                         </div>
-                        <h3>🚜 Water Tank Motor</h3>
+                        <h3>🚜 Fertilizer/Soil Motor</h3>
                     </div>
                     <div class="card-body controls">
-                        <span class="control-label inactive" id="soilLabel">OFF</span>
+                        <span class="control-label inactive" id="soilLabel">Motor Offline ❌</span>
                         <label class="eco-toggle">
                             <input type="checkbox" id="soilToggle" onchange="toggleControl('soil')">
                             <span class="slider round ripple"></span>
                         </label>
                     </div>
-                    <p class="control-desc">Water Tank Motor</p>
+                    <p class="control-desc">Activate secondary nutrient mix systems.</p>
                 </div>
             </div>
 
@@ -193,10 +212,10 @@
                     <div class="icon-wrapper terminal-icon">
                         <i class='bx bx-terminal'></i>
                     </div>
-                    <h3>🖥️ Farm System Logs</h3>
+                    <h3>🖥️ Farm Activity Log</h3>
                 </div>
                 <div class="logs-container">
-                    <pre id="systemLogs">Waiting for field station telemetry...</pre>
+                    <pre id="systemLogs">Awaiting initial telemetry blocks...</pre>
                 </div>
             </div>
 
