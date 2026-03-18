@@ -59,22 +59,22 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 
 /* --- A. FARM FLOW VISUAL --- */
 .flow-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 250px; justify-content: space-between; }
-.horizontal-flow { display: flex; align-items: center; justify-content: space-between; flex: 1; padding: 2rem 10%; }
-.flow-node { display: flex; flex-direction: column; align-items: center; gap: 0.8rem; width: 120px; text-align: center; z-index: 2; position: relative; }
+.horizontal-flow { display: flex; align-items: center; justify-content: space-between; flex: 1; padding: 2rem 5%; }
+.flow-node { display: flex; flex-direction: column; align-items: center; gap: 1rem; width: 140px; text-align: center; z-index: 2; position: relative; }
 
-.node-icon { width: 80px; height: 80px; border-radius: 50%; background: #f3f4f6; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--text-muted); transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-.node-name { font-size: 0.95rem; font-weight: 600; color: var(--text-dark); background: rgba(255,255,255,0.8); padding: 2px 5px; border-radius: 5px; }
-.node-state { font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 12px; margin-top: -3px; }
+.node-icon { width: 100px; height: 100px; border-radius: 50%; background: #f3f4f6; border: 3px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; color: var(--text-muted); transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+.node-name { font-size: 1.1rem; font-weight: 700; color: var(--text-dark); background: rgba(255,255,255,0.8); padding: 4px 8px; border-radius: 6px; }
+.node-state { font-size: 0.85rem; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 12px; margin-top: -3px; }
 
 /* Flow active states */
-.node-well-active { border-color: #4CAF50 !important; color: #4CAF50 !important; background: #e8f5e9 !important; box-shadow: 0 0 20px rgba(76, 175, 80, 0.4); transform: scale(1.08); }
-.node-tank-active { border-color: #4CAF50 !important; color: #4CAF50 !important; background: #e8f5e9 !important; box-shadow: 0 0 20px rgba(76, 175, 80, 0.4); transform: scale(1.08); }
-.node-field-active { border-color: var(--primary) !important; color: var(--primary) !important; background: var(--primary-soft) !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.4); transform: scale(1.08); }
+.node-well-active { border-color: #4CAF50 !important; color: #4CAF50 !important; background: #e8f5e9 !important; box-shadow: 0 0 24px rgba(76, 175, 80, 0.4); transform: scale(1.08); }
+.node-tank-active { border-color: #4CAF50 !important; color: #4CAF50 !important; background: #e8f5e9 !important; box-shadow: 0 0 24px rgba(76, 175, 80, 0.4); transform: scale(1.08); }
+.node-field-active { border-color: var(--primary) !important; color: var(--primary) !important; background: var(--primary-soft) !important; box-shadow: 0 0 24px rgba(34, 197, 94, 0.4); transform: scale(1.08); }
 
 /* Dynamic Tank */
-.tank-visual { width: 70px; height: 90px; border: 3px solid #d1d5db; border-radius: 6px 6px 12px 12px; background: #f9fafb; position: relative; overflow: hidden; box-shadow: inset 0 4px 8px rgba(0,0,0,0.05), 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; align-items: flex-end; margin: 0 auto; transition: all 0.3s; z-index: 2; }
-.tank-visual.node-tank-active { border-color: var(--blue-water); box-shadow: 0 0 20px rgba(14, 165, 233, 0.4), inset 0 4px 8px rgba(0,0,0,0.05); transform: scale(1.08); }
-.tank-water { width: 100%; height: 50%; background: linear-gradient(180deg, #7dd3fc 0%, #0284c7 100%); position: absolute; bottom: 0; left: 0; transition: height 1s ease-in-out, background 0.5s; border-radius: 0 0 8px 8px; }
+.tank-visual { width: 85px; height: 110px; border: 4px solid #d1d5db; border-radius: 8px 8px 16px 16px; background: #f9fafb; position: relative; overflow: hidden; box-shadow: inset 0 4px 8px rgba(0,0,0,0.05), 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; align-items: flex-end; margin: 0 auto; transition: all 0.3s; z-index: 2; }
+.tank-visual.node-tank-active { border-color: var(--blue-water); box-shadow: 0 0 24px rgba(14, 165, 233, 0.4), inset 0 4px 8px rgba(0,0,0,0.05); transform: scale(1.08); }
+.tank-water { width: 100%; height: 50%; background: linear-gradient(180deg, #7dd3fc 0%, #0284c7 100%); position: absolute; bottom: 0; left: 0; transition: height 1s ease-in-out, background 0.5s; border-radius: 0 0 12px 12px; }
 .tank-water::before { content: ""; position: absolute; top: -8px; left: -100%; width: 200%; height: 8px; background-image: radial-gradient(circle at 10px 4px, transparent 10px, rgba(255,255,255,0.4) 11px); background-size: 20px 10px; animation: waveAnim 1.5s linear infinite; }
 .tank-water.alert-level { background: linear-gradient(180deg, #f87171 0%, #dc2626 100%); }
 .tank-water.alert-level::before { background-image: radial-gradient(circle at 10px 4px, transparent 10px, rgba(255,255,255,0.2) 11px); }
@@ -82,8 +82,8 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 @keyframes waveAnim { 0% { transform: translateX(0); } 100% { transform: translateX(20px); } }
 
 /* Shimmer Flow Path */
-.shimmer-path { flex: 1; height: 12px; background: #e5e7eb; position: relative; display: flex; align-items: center; border-radius: 10px; overflow: hidden; margin: 0 1rem; top: -15px; z-index: 1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
-.shimmer-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s; border-radius: 10px; }
+.shimmer-path { flex: 1; height: 16px; background: #e5e7eb; position: relative; display: flex; align-items: center; border-radius: 12px; overflow: hidden; margin: 0 1.5rem; top: -20px; z-index: 1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+.shimmer-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s; border-radius: 12px; }
 
 .shimmer-path.active .shimmer-line { 
     opacity: 1; 
@@ -92,7 +92,7 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
     background-size: 50% 100%;
     background-repeat: no-repeat;
     animation: googleShimmer 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    box-shadow: 0 0 12px rgba(76, 175, 80, 0.4);
+    box-shadow: 0 0 16px rgba(76, 175, 80, 0.4);
 }
 
 @keyframes googleShimmer { 
@@ -182,6 +182,12 @@ input:checked + .slider:before { transform: translateX(28px); }
     .bottom-layout { grid-template-columns: 1fr; overflow-y: auto; }
     .sensor-grid { grid-template-columns: repeat(2, 1fr); }
     .app-layout { height: auto; min-height: 100vh; }
+    
+    /* Scale Down Map Elements for Tablets */
+    .node-icon { width: 80px; height: 80px; font-size: 2.5rem; }
+    .node-name { font-size: 0.95rem; }
+    .tank-visual { width: 70px; height: 90px; border-radius: 6px 6px 12px 12px; }
+    .shimmer-path { height: 12px; top: -15px; }
 }
 @media (max-width: 600px) {
     .top-bar { flex-direction: column; align-items: flex-start; gap: 1rem; }
