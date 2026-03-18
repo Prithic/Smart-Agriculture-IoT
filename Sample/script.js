@@ -14,8 +14,8 @@ const modeToggle = document.getElementById('modeToggle');
 const modeLabelHeader = document.getElementById('modeLabelHeader');
 
 // Map Flow Elements
-const pathWellTank = document.getElementById('path-well-tank');
-const pathTankField = document.getElementById('path-tank-field');
+const pathWellTank = document.getElementById('svg-flow-t');
+const pathTankField = document.getElementById('svg-flow-i');
 
 const nodeWellIcon = document.querySelector('#node-well .node-icon');
 const nodeTankIcon = document.getElementById('tankVisual');

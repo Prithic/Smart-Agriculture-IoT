@@ -59,7 +59,7 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 
 /* --- A. FARM FLOW VISUAL --- */
 .flow-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 250px; justify-content: space-between; }
-.horizontal-flow { display: flex; align-items: center; justify-content: space-between; flex: 1; padding: 2rem 5%; }
+.horizontal-flow { display: flex; align-items: center; justify-content: space-between; flex: 1; padding: 2rem 5%; position: relative; }
 .flow-node { display: flex; flex-direction: column; align-items: center; gap: 1rem; width: 140px; text-align: center; z-index: 2; position: relative; }
 
 .node-icon { width: 100px; height: 100px; border-radius: 50%; background: #f3f4f6; border: 3px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; color: var(--text-muted); transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
@@ -79,24 +79,27 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 
 @keyframes waveAnim { 0% { transform: translateX(0); } 100% { transform: translateX(20px); } }
 
-/* Shimmer Flow Path */
-.shimmer-path { flex: 1; height: 16px; background: #e5e7eb; position: relative; display: flex; align-items: center; border-radius: 12px; overflow: hidden; margin: 0 1.5rem; top: -20px; z-index: 1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
-.shimmer-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s; border-radius: 12px; }
-
-.shimmer-path.active .shimmer-line { 
+/* Curved SVG Flow Path */
+.flow-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.svg-pipe { fill: none; stroke: #e5e7eb; stroke-width: 4; stroke-linecap: round; }
+.svg-flow { 
+    fill: none; 
+    stroke: url(#flow-gradient);
+    stroke-width: 4; 
+    stroke-linecap: round; 
+    stroke-dasharray: 12, 12; 
+    stroke-dashoffset: 0; 
+    opacity: 0; 
+    transition: opacity 0.3s; 
+    z-index: 1; 
+}
+.svg-flow.active { 
     opacity: 1; 
-    background-color: #e8f5e9;
-    background-image: linear-gradient(90deg, rgba(232, 245, 233, 0) 0%, rgba(76, 175, 80, 0.8) 50%, rgba(232, 245, 233, 0) 100%);
-    background-size: 50% 100%;
-    background-repeat: no-repeat;
-    animation: googleShimmer 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    box-shadow: 0 0 16px rgba(76, 175, 80, 0.4);
+    animation: svgFlowDash 1s linear infinite reverse; 
+    filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.6));
 }
 
-@keyframes googleShimmer { 
-    0% { background-position: -200% 0; } 
-    100% { background-position: 300% 0; } 
-}
+@keyframes svgFlowDash { to { stroke-dashoffset: 24; } }
 
 /* Badges */
 .badge-ok { background: var(--primary-soft); color: var(--primary); }
@@ -185,7 +188,6 @@ input:checked + .slider:before { transform: translateX(28px); }
     .node-icon { width: 80px; height: 80px; font-size: 2.5rem; }
     .node-name { font-size: 0.95rem; }
     .tank-visual { width: 70px; height: 90px; border-radius: 6px 6px 12px 12px; }
-    .shimmer-path { height: 12px; top: -15px; }
 }
 @media (max-width: 600px) {
     .top-bar { flex-direction: column; align-items: flex-start; gap: 1rem; }
