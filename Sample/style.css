@@ -58,30 +58,31 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 .card-title i { color: var(--primary); }
 
 /* --- A. FARM FLOW VISUAL --- */
-.flow-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 350px; justify-content: space-between; position: relative; }
-.curved-layout { position: relative; width: 100%; height: 100%; min-height: 300px; padding: 0; }
-
-.flow-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-.svg-pipe { fill: none; stroke: #e5e7eb; stroke-width: 6; stroke-linecap: round; }
-.svg-flow { fill: none; stroke: var(--blue-water); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 15, 15; stroke-dashoffset: 0; opacity: 0; transition: opacity 0.3s; z-index: 1; }
-.svg-flow.active { opacity: 1; animation: flowDash 1s linear infinite reverse; }
-.svg-flow.green-flow { stroke: var(--primary); }
-
-@keyframes flowDash { to { stroke-dashoffset: 30; } }
-
-.flow-node { display: flex; flex-direction: column; align-items: center; gap: 0.8rem; width: 120px; text-align: center; position: absolute; z-index: 2; transform: translate(-50%, -50%); }
-.well-pos { top: 16.6%; left: 16.6%; }
-.tank-pos { top: 83.3%; left: 50%; }
-.field-pos { top: 16.6%; left: 83.3%; }
+.flow-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 250px; justify-content: space-between; }
+.horizontal-flow { display: flex; align-items: center; justify-content: space-between; flex: 1; padding: 2rem 10%; }
+.flow-node { display: flex; flex-direction: column; align-items: center; gap: 0.8rem; width: 120px; text-align: center; z-index: 2; position: relative; }
 
 .node-icon { width: 80px; height: 80px; border-radius: 50%; background: #f3f4f6; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--text-muted); transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
 .node-name { font-size: 0.95rem; font-weight: 600; color: var(--text-dark); background: rgba(255,255,255,0.8); padding: 2px 5px; border-radius: 5px; }
 .node-state { font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 12px; margin-top: -3px; }
 
 /* Flow active states */
-.node-well-active { border-color: var(--blue-water) !important; color: var(--blue-water) !important; background: #e0f2fe !important; box-shadow: 0 0 20px rgba(14, 165, 233, 0.4); transform: scale(1.08); }
-.node-tank-active { border-color: var(--blue-water) !important; color: var(--blue-water) !important; background: #e0f2fe !important; box-shadow: 0 0 20px rgba(14, 165, 233, 0.4); transform: scale(1.08); }
+.node-well-active { border-color: #4CAF50 !important; color: #4CAF50 !important; background: #e8f5e9 !important; box-shadow: 0 0 20px rgba(76, 175, 80, 0.4); transform: scale(1.08); }
+.node-tank-active { border-color: #4CAF50 !important; color: #4CAF50 !important; background: #e8f5e9 !important; box-shadow: 0 0 20px rgba(76, 175, 80, 0.4); transform: scale(1.08); }
 .node-field-active { border-color: var(--primary) !important; color: var(--primary) !important; background: var(--primary-soft) !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.4); transform: scale(1.08); }
+
+/* Shimmer Flow Path */
+.shimmer-path { flex: 1; height: 12px; background: #e5e7eb; position: relative; display: flex; align-items: center; border-radius: 10px; overflow: hidden; margin: 0 1rem; top: -15px; z-index: 1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+.shimmer-line { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s; border-radius: 10px; }
+.shimmer-path.active .shimmer-line { 
+    opacity: 1; 
+    background: linear-gradient(90deg, #A5D6A7 0%, #4CAF50 50%, #A5D6A7 100%);
+    background-size: 200% 100%;
+    animation: flowShimmer 1.2s linear infinite;
+    box-shadow: 0 0 12px rgba(76, 175, 80, 0.6);
+}
+
+@keyframes flowShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* Badges */
 .badge-ok { background: var(--primary-soft); color: var(--primary); }
@@ -169,11 +170,14 @@ input:checked + .slider:before { transform: translateX(28px); }
 @media (max-width: 600px) {
     .top-bar { flex-direction: column; align-items: flex-start; gap: 1rem; }
     .header-actions { width: 100%; justify-content: space-between; }
-    .flow-container { flex-direction: column; }
-    .flow-path { width: 4px; height: 30px; margin: 10px 0; }
-    .flow-path i { right: auto; bottom: -10px; transform: rotate(90deg); }
-    .path-active::after { top: -20px; width: 100%; height: 20px; animation: flowMoveY 1s linear infinite; }
-    @keyframes flowMoveY { 0% { top: -20px; } 100% { top: 100%; } }
+    .horizontal-flow { flex-direction: column; gap: 0.5rem; }
+    .shimmer-path { width: 6px; height: 40px; margin: 10px 0; top: 0; }
+    .shimmer-path.active .shimmer-line { 
+        background: linear-gradient(180deg, #A5D6A7 0%, #4CAF50 50%, #A5D6A7 100%);
+        background-size: 100% 200%;
+        animation: flowShimmerY 1.2s linear infinite;
+    }
+    @keyframes flowShimmerY { 0% { background-position: 0 200%; } 100% { background-position: 0 -200%; } }
     .sensor-grid { grid-template-columns: 1fr; }
     .bottom-bar { flex-direction: column; gap: 0.5rem; text-align: center; }
 }

@@ -87,33 +87,34 @@
                 <!-- LEFT: FARM FLOW VISUAL -->
                 <section class="card flow-card">
                     <h2 class="card-title"><i class='bx bx-git-merge'></i> System Flow Topology</h2>
-                    <div class="flow-container curved-layout">
+                    <div class="flow-container horizontal-flow">
                         
-                        <!-- Curved SVG Background Paths -->
-                        <svg class="flow-svg" viewBox="0 0 600 300" preserveAspectRatio="none">
-                            <!-- Well to Tank -->
-                            <path class="svg-pipe" d="M 100,50 C 250,50 200,250 300,250" />
-                            <path id="svg-flow-t" class="svg-flow" d="M 100,50 C 250,50 200,250 300,250" />
-                            
-                            <!-- Tank to Field -->
-                            <path class="svg-pipe" d="M 300,250 C 400,250 350,50 500,50" />
-                            <path id="svg-flow-i" class="svg-flow green-flow" d="M 300,250 C 400,250 350,50 500,50" />
-                        </svg>
-
-                        <!-- Nodes overlay -->
-                        <div class="flow-node well-pos" id="node-well">
+                        <!-- Well -->
+                        <div class="flow-node" id="node-well">
                             <div class="node-icon"><i class='bx bx-cloud-rain'></i></div>
                             <span class="node-name">Well Source</span>
                             <span class="node-state badge-ok" id="node-well-status">Ready</span>
                         </div>
 
-                        <div class="flow-node tank-pos" id="node-tank">
+                        <!-- Shimmer Path 1 -->
+                        <div class="shimmer-path" id="path-well-tank">
+                            <div class="shimmer-line"></div>
+                        </div>
+
+                        <!-- Tank -->
+                        <div class="flow-node" id="node-tank">
                             <div class="node-icon"><i class='bx bx-cylinder'></i></div>
                             <span class="node-name">Main Tank</span>
                             <span class="node-state badge-warn" id="node-tank-status">--%</span>
                         </div>
 
-                        <div class="flow-node field-pos" id="node-field">
+                        <!-- Shimmer Path 2 -->
+                        <div class="shimmer-path" id="path-tank-field">
+                            <div class="shimmer-line"></div>
+                        </div>
+
+                        <!-- Field -->
+                        <div class="flow-node" id="node-field">
                             <div class="node-icon"><i class='bx bx-spa'></i></div>
                             <span class="node-name">Crop Field</span>
                             <span class="node-state badge-ok" id="node-field-status">--%</span>
