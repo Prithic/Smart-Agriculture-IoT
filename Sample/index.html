@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Agri Dashboard</title>
+    <!-- Boxicons for modern icons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Elements -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+    <div class="bg-shape shape-3"></div>
+
+    <div class="dashboard-container glass-panel">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-info">
+                <h1><i class='bx bx-microchip'></i> ESP32 Agri Dashboard</h1>
+                <div class="status-indicator">
+                    <div class="pulse-dot" id="connDot"></div>
+                    <p id="statusMessage" class="status-alert">Connecting to ESP32...</p>
+                </div>
+            </div>
+            <div class="header-meta">
+                <div class="last-updated">
+                    <i class='bx bx-time-five'></i> <span id="lastUpdated">--:--:--</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <main class="cards-grid">
+            
+            <!-- Temperature Card -->
+            <div class="card glass-card" id="tempCard">
+                <div class="card-header">
+                    <div class="icon-wrapper temp-icon">
+                        <i class='bx bxs-thermometer'></i>
+                    </div>
+                    <h3>Temperature</h3>
+                </div>
+                <div class="card-body">
+                    <div class="value-container">
+                        <span class="value" id="tempValue">--</span>
+                        <span class="unit">°C</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="card glass-card" id="humCard">
+                <div class="card-header">
+                    <div class="icon-wrapper hum-icon">
+                        <i class='bx bx-water'></i>
+                    </div>
+                    <h3>Humidity</h3>
+                </div>
+                <div class="card-body">
+                    <div class="value-container">
+                        <span class="value" id="humValue">--</span>
+                        <span class="unit">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="controls-group">
+                <!-- Mode Toggle -->
+                <div class="card glass-card control-card">
+                    <div class="card-header">
+                        <div class="icon-wrapper mode-icon">
+                            <i class='bx bx-cog'></i>
+                        </div>
+                        <h3>System Mode</h3>
+                    </div>
+                    <div class="card-body controls">
+                        <span class="control-label inactive" id="modeLabel">Manual</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Water Motor Toggle -->
+                <div class="card glass-card control-card">
+                    <div class="card-header">
+                        <div class="icon-wrapper pump-icon">
+                            <i class='bx bx-droplet'></i>
+                        </div>
+                        <h3>Water Motor</h3>
+                    </div>
+                    <div class="card-body controls">
+                        <span class="control-label inactive" id="waterLabel">OFF</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="waterToggle" onchange="toggleControl('water')">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Soil Motor Toggle -->
+                <div class="card glass-card control-card">
+                    <div class="card-header">
+                        <div class="icon-wrapper soil-icon">
+                            <i class='bx bx-spa'></i>
+                        </div>
+                        <h3>Soil Motor</h3>
+                    </div>
+                    <div class="card-body controls">
+                        <span class="control-label inactive" id="soilLabel">OFF</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="soilToggle" onchange="toggleControl('soil')">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Card -->
+            <div class="card glass-card logs-card">
+                <div class="card-header">
+                    <div class="icon-wrapper logs-icon">
+                        <i class='bx bx-terminal'></i>
+                    </div>
+                    <h3>System Logs</h3>
+                </div>
+                <div class="logs-container">
+                    <pre id="systemLogs">Waiting for logs...</pre>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
