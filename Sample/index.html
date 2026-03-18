@@ -32,24 +32,63 @@
         <header class="header">
             <div class="header-info">
                 <h1>
-                    🌾 Smart Agriculture Dashboard
+                    🌾 Smart Agriculture System
                     <i class='bx bxs-leaf animated-leaf'></i>
                 </h1>
-                <p class="subtitle">Autonomous Farm & Irrigation Management</p>
+                <p class="subtitle">IoT Based Farm Monitoring & Automation</p>
                 <div class="status-indicator">
                     <div class="pulse-dot" id="connDot"></div>
                     <span id="statusMessage" class="status-alert">🔴 Offline - Connecting...</span>
                 </div>
             </div>
-            <div class="header-meta">
-                <a href="#" class="cloud-btn pulse-glow">
-                    ☁️ Open Cloud Control
-                </a>
+            <div class="header-actions">
+                <div class="global-mode-header">
+                    <span class="mode-text">SYSTEM MODE:</span>
+                    <span class="control-label inactive" id="modeLabel" style="font-size: 1rem;">MANUAL</span>
+                    <label class="eco-toggle header-toggle">
+                        <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
+                        <span class="slider round ripple"></span>
+                    </label>
+                </div>
             </div>
         </header>
 
         <!-- Main Grid -->
         <main class="systems-grid">
+
+            <!-- Farm Map Section (Horizontal Flow) -->
+            <section class="system-section farm-map-section">
+                <h2 class="section-title">🗺️ Live Farm Topography & Flow</h2>
+                <div class="card organic-card farm-map-container">
+                    
+                    <div class="map-node" id="node-well">
+                        <div class="node-icon"><i class='bx bx-hive'></i></div>
+                        <div class="node-label">Deep Well</div>
+                        <div class="node-status badge-normal" id="status-well">Source OK</div>
+                    </div>
+                    
+                    <div class="map-flow" id="flow-well-tank">
+                        <div class="flow-particles"></div>
+                    </div>
+                    
+                    <div class="map-node" id="node-tank">
+                        <div class="node-icon"><i class='bx bx-cylinder'></i></div>
+                        <div class="node-label">Central Tank</div>
+                        <div class="node-status badge-warning" id="status-tank-map">--%</div>
+                    </div>
+                    
+                    <div class="map-flow" id="flow-tank-field">
+                        <div class="flow-particles"></div>
+                    </div>
+                    
+                    <div class="map-node" id="node-field">
+                        <div class="node-icon"><i class='bx bx-spa'></i></div>
+                        <div class="node-label">Crop Field</div>
+                        <div class="node-status badge-normal" id="status-field-map">--%</div>
+                    </div>
+
+                </div>
+            </section>
 
             <!-- Environment Section -->
             <section class="system-section environment-section">
@@ -174,24 +213,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </section>
-
-            <!-- Global Operation Mode -->
-            <section class="system-section mode-section">
-                <div class="card organic-card control-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper mode-icon"><i class='bx bx-cog'></i></div>
-                        <h3>🤖 Global Operation Mode</h3>
-                    </div>
-                    <div class="card-body controls">
-                        <span class="control-label inactive" id="modeLabel">Manual Override 🧑‍🌾</span>
-                        <label class="eco-toggle">
-                            <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
-                            <span class="slider round ripple"></span>
-                        </label>
-                    </div>
-                    <p class="control-desc" style="margin-top: 10px;">Enable fully autonomous water logistics based on sensor arrays.</p>
                 </div>
             </section>
 
