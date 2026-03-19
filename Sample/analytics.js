@@ -93,10 +93,27 @@ let startingMoistureBeforeIrrigation = null;
 let drySoilConsecutiveTicks = 0;
 let previousTankLevel = null;
 
+// Energy & Motor Tracking
+const POWER_KW = 0.5; // kW
+const COST_PER_KWH = 6.0; // ₹
+let irrTicksToday = 0;
+let irrTicksSession = 0;
+let tankTicksToday = 0;
+let tankTicksSession = 0;
+let lastTankMotorState = 0;
+
 // Flow rate constant (Liters per second of motor ON)
 const FLOW_RATE_LPS = 0.5;
 // the update is every 2 seconds roughly.
 const SECONDS_PER_TICK = 2;
+
+function formatRuntime(ticks) {
+    let sec = ticks * SECONDS_PER_TICK;
+    let m = Math.floor(sec / 60);
+    let s = sec % 60;
+    if (m === 0) return `${s}s`;
+    return `${m}m ${s}s`;
+}
 
 window.processAnalytics = function(data) {
     const now = new Date();
@@ -123,23 +140,20 @@ window.processAnalytics = function(data) {
     weatherChart.update();
 
     // Arrays maintenance (Motor)
-    if(motorChart.data.labels.length > maxDataPoints) {
-        motorChart.data.labels.shift();
-        motorChart.data.datasets[0].data.shift();
-    }
-    motorChart.data.labels.push(timeLabel);
-    motorChart.data.datasets[0].data.push(data.irrigationMotor);
-    motorChart.update();
+    let anyMotorOn = 0;
 
-    // Water Usage & Cycles & Smart Alerts Check
+    // Irrigation Motor Logic
     if(data.irrigationMotor === 1) {
+        anyMotorOn = 1;
         totalWaterLiters += (FLOW_RATE_LPS * SECONDS_PER_TICK);
         
         if(lastMotorState === 0) {
             irrigationCount++;
             startingMoistureBeforeIrrigation = data.soilMoisture;
+            irrTicksSession = 0;
         }
-        
+        irrTicksSession++;
+        irrTicksToday++;
         motorConsecutiveOnTicks++;
         
         // Alert: Dry Run Detection
@@ -148,7 +162,6 @@ window.processAnalytics = function(data) {
         }
     } else {
         if (lastMotorState === 1 && startingMoistureBeforeIrrigation !== null) {
-            // Motor just turned off. Calculate Irrigation Efficiency.
             let gained = data.soilMoisture - startingMoistureBeforeIrrigation;
             document.getElementById('insightEfficiency').innerText = `+${gained.toFixed(1)}% per cycle`;
             startingMoistureBeforeIrrigation = null;
@@ -156,10 +169,31 @@ window.processAnalytics = function(data) {
         motorConsecutiveOnTicks = 0;
     }
     lastMotorState = data.irrigationMotor;
-    
-    // Update Water bar chart
-    waterChart.data.datasets[0].data[0] = parseFloat(totalWaterLiters.toFixed(2));
-    waterChart.update();
+
+    // Tank Motor Logic (Assuming data.tankMotor exists, default 0)
+    let currentTankMotor = data.tankMotor || 0;
+    if(currentTankMotor === 1) {
+        anyMotorOn = 1;
+        if(lastTankMotorState === 0) tankTicksSession = 0;
+        tankTicksSession++;
+        tankTicksToday++;
+    }
+    lastTankMotorState = currentTankMotor;
+
+    if(motorChart.data.labels.length > maxDataPoints) {
+        motorChart.data.labels.shift();
+        motorChart.data.datasets[0].data.shift();
+    }
+    motorChart.data.labels.push(timeLabel);
+    motorChart.data.datasets[0].data.push(anyMotorOn); // Graph any active motor
+    motorChart.update();
+
+    // Energy Math: E = P * t (in hours) => 0.5 kW * (seconds / 3600)
+    let totalTicksToday = irrTicksToday + tankTicksToday;
+    let totalTicksSession = irrTicksSession + tankTicksSession;
+    let energyToday = POWER_KW * ((totalTicksToday * SECONDS_PER_TICK) / 3600);
+    let energySession = POWER_KW * ((totalTicksSession * SECONDS_PER_TICK) / 3600);
+    let costToday = energyToday * COST_PER_KWH;
 
     // Averages Tracking
     sumTemp += parseFloat(data.temperature);
@@ -195,14 +229,49 @@ window.processAnalytics = function(data) {
         drySoilConsecutiveTicks = 0;
     }
 
+    // Utilities
+    document.getElementById('trkIrrTime').innerText = formatRuntime(irrTicksToday);
+    document.getElementById('trkIrrSession').innerText = formatRuntime(irrTicksSession);
+    document.getElementById('trkTankTime').innerText = formatRuntime(tankTicksToday);
+    document.getElementById('trkTankSession').innerText = formatRuntime(tankTicksSession);
+    
+    document.getElementById('trkEnergyToday').innerText = `${energyToday.toFixed(3)} kWh`;
+    document.getElementById('trkEnergySession').innerText = `${energySession.toFixed(3)} kWh`;
+    document.getElementById('trkCostToday').innerText = `₹ ${costToday.toFixed(2)}`;
+    document.getElementById('trkPowerDraw').innerText = anyMotorOn ? `${POWER_KW} kW` : "0 kW";
+    document.getElementById('trkPowerDraw').className = anyMotorOn ? 'clr-red' : 'clr-green';
+
     // Update Reports DOM
     document.getElementById('repWater').innerText = `${totalWaterLiters.toFixed(2)} L`;
     document.getElementById('repCycles').innerText = irrigationCount;
     document.getElementById('repTemp').innerText = `${avgTemp} °C`;
     document.getElementById('repMoist').innerText = `${avgMoist} %`;
+    
+    document.getElementById('repTotalRuntime').innerText = formatRuntime(totalTicksToday);
+    document.getElementById('repTotalEnergy').innerText = `${energyToday.toFixed(2)} kWh`;
+    document.getElementById('repTotalCost').innerText = `₹ ${costToday.toFixed(2)}`;
+
     document.getElementById('repHighTemp').innerText = `${highestTemp.toFixed(1)} °C`;
     document.getElementById('repLowMoist').innerText = `${lowestMoist.toFixed(1)} %`;
+    // Weekly Estimates (Naive * 7)
+    let weekEnergy = energyToday * 7;
     document.getElementById('repWeekWater').innerText = (totalWaterLiters * 7).toFixed(1);
+    document.getElementById('repWeekEnergy').innerText = `${weekEnergy.toFixed(2)} kWh`;
+    document.getElementById('repWeekCost').innerText = `₹ ${(weekEnergy * COST_PER_KWH).toFixed(2)}`;
+
+    // Energy Insight logic
+    const engInsight = document.getElementById('insightEnergyTxt');
+    const engIcon = document.getElementById('insightEnergyIcon');
+    if (energyToday > 2.0) {
+        engInsight.innerText = "High usage detected";
+        engIcon.style.color = '#dc2626'; // red
+    } else if (energyToday > 0.5) {
+        engInsight.innerText = "Nominal usage today";
+        engIcon.style.color = '#f59e0b'; // orange
+    } else {
+        engInsight.innerText = "Highly efficient";
+        engIcon.style.color = '#10b981'; // green
+    }
 
     // Crop Health Indicator
     const led = document.getElementById('cropStatusLed');

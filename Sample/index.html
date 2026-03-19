@@ -240,12 +240,37 @@
                         </div>
                     </div>
                     <div class="card insight-card" style="padding: 1rem; display: flex; align-items: flex-start; gap: 1rem;">
-                        <div class="insight-icon" style="font-size: 2rem; color: #3b82f6;"><i class='bx bx-cloud-light-rain'></i></div>
+                        <div class="insight-icon" style="font-size: 2rem; color: #10b981;" id="insightEnergyIcon"><i class='bx bx-bolt-circle'></i></div>
                         <div>
-                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Environmental Impact</h3>
-                            <p id="insightEnv" style="font-weight: 600; font-size: 0.95rem;">Awaiting baseline...</p>
+                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Energy Efficiency</h3>
+                            <p id="insightEnergyTxt" style="font-weight: 600; font-size: 0.95rem;">Pending run...</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Energy & Motor Usage Row -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                    <!-- Motor Usage Card -->
+                    <section class="card report-card">
+                        <h2 class="card-title"><i class='bx bx-timer'></i> Motor Runtime Tracking</h2>
+                        <ul class="report-list">
+                            <li><span>Irrigation Motor (Today)</span> <strong id="trkIrrTime">0m 0s</strong></li>
+                            <li><span>Irrigation (Last Session)</span> <strong id="trkIrrSession">0s</strong></li>
+                            <li><span>Tank Motor (Today)</span> <strong id="trkTankTime">0m 0s</strong></li>
+                            <li><span>Tank (Last Session)</span> <strong id="trkTankSession">0s</strong></li>
+                        </ul>
+                    </section>
+
+                    <!-- Electricity Tracking Card -->
+                    <section class="card report-card">
+                        <h2 class="card-title"><i class='bx bx-plug'></i> Electricity & Cost (0.5 kW)</h2>
+                        <ul class="report-list">
+                            <li><span>Energy Used Today</span> <strong id="trkEnergyToday">0.000 kWh</strong></li>
+                            <li><span>Energy (Last Session)</span> <strong id="trkEnergySession">0.000 kWh</strong></li>
+                            <li><span>Estimated Cost Today</span> <strong class="clr-red" id="trkCostToday">₹ 0.00</strong></li>
+                            <li><span>Current Power Draw</span> <strong class="clr-green" id="trkPowerDraw">0 kW</strong></li>
+                        </ul>
+                    </section>
                 </div>
 
                 <div class="analytics-grid">
@@ -287,10 +312,13 @@
                         <h2 class="card-title"><i class='bx bx-calendar-check'></i> Daily Summary Matrix</h2>
                         <ul class="report-list">
                             <li><span>Total Water Dispensed</span> <strong id="repWater">0 L</strong></li>
-                            <li><span>Irrigation Cycles Triggered</span> <strong id="repCycles">0</strong></li>
+                            <li><span>Irrigation Cycles</span> <strong id="repCycles">0</strong></li>
                             <li><span>Rolling Avg Temperature</span> <strong id="repTemp">-- °C</strong></li>
                             <li><span>Rolling Avg Humidity</span> <strong id="repHumid">-- %</strong></li>
                             <li><span>Rolling Avg Moisture</span> <strong id="repMoist">-- %</strong></li>
+                            <li style="border-top: 1px dashed #e2e8f0; margin-top: 0.5rem; padding-top: 0.5rem;"><span>Total Motor Runtime</span> <strong id="repTotalRuntime">0m</strong></li>
+                            <li><span>Total Energy</span> <strong id="repTotalEnergy">0.00 kWh</strong></li>
+                            <li><span>Total Cost Estimate</span> <strong class="clr-red" id="repTotalCost">₹ 0.00</strong></li>
                         </ul>
                     </section>
 
@@ -298,7 +326,9 @@
                     <section class="card report-card">
                         <h2 class="card-title"><i class='bx bx-calendar-week'></i> Weekly Summary Prototype</h2>
                         <ul class="report-list">
-                            <li><span>Estimated Weekly Usage</span> <strong><span id="repWeekWater">0</span> L</strong></li>
+                            <li><span>Estimated Weekly Water</span> <strong><span id="repWeekWater">0</span> L</strong></li>
+                            <li><span>Estimated Weekly Energy</span> <strong id="repWeekEnergy">0.00 kWh</strong></li>
+                            <li><span>Estimated Weekly Cost</span> <strong class="clr-red" id="repWeekCost">₹ 0.00</strong></li>
                             <li><span>Highest Temp (7d)</span> <strong class="clr-red" id="repHighTemp">-- °C</strong></li>
                             <li><span>Lowest Moisture (7d)</span> <strong class="clr-orange" id="repLowMoist">-- %</strong></li>
                         </ul>
