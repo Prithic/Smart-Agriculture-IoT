@@ -141,8 +141,8 @@ function updateUI(data) {
     }
 
     // 3. Flow Map Animations & Controls Linkage
-    const isTankOn = data.tankMotor === 1;
-    const isIrrOn = data.irrigationMotor === 1;
+    const isTankOn = Number(data.tankMotor) === 1;
+    const isIrrOn = Number(data.irrigationMotor) === 1;
 
     // Tank Path
     if (isTankOn) {

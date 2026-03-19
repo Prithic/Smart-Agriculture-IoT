@@ -143,13 +143,14 @@ window.processAnalytics = function(data) {
     let anyMotorOn = 0;
 
     // Irrigation Motor Logic
-    if(data.irrigationMotor === 1) {
+    let currentIrrMotor = Number(data.irrigationMotor) === 1 ? 1 : 0;
+    if(currentIrrMotor === 1) {
         anyMotorOn = 1;
         totalWaterLiters += (FLOW_RATE_LPS * SECONDS_PER_TICK);
         
         if(lastMotorState === 0) {
             irrigationCount++;
-            startingMoistureBeforeIrrigation = data.soilMoisture;
+            startingMoistureBeforeIrrigation = Number(data.soilMoisture) || 0;
             irrTicksSession = 0;
         }
         irrTicksSession++;
@@ -162,16 +163,16 @@ window.processAnalytics = function(data) {
         }
     } else {
         if (lastMotorState === 1 && startingMoistureBeforeIrrigation !== null) {
-            let gained = data.soilMoisture - startingMoistureBeforeIrrigation;
+            let gained = (Number(data.soilMoisture) || 0) - startingMoistureBeforeIrrigation;
             document.getElementById('insightEfficiency').innerText = `+${gained.toFixed(1)}% per cycle`;
             startingMoistureBeforeIrrigation = null;
         }
         motorConsecutiveOnTicks = 0;
     }
-    lastMotorState = data.irrigationMotor;
+    lastMotorState = currentIrrMotor;
 
     // Tank Motor Logic (Assuming data.tankMotor exists, default 0)
-    let currentTankMotor = data.tankMotor || 0;
+    let currentTankMotor = Number(data.tankMotor) === 1 ? 1 : 0;
     if(currentTankMotor === 1) {
         anyMotorOn = 1;
         if(lastTankMotorState === 0) tankTicksSession = 0;
