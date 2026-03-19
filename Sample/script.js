@@ -17,7 +17,11 @@ const modeLabelHeader = document.getElementById('modeLabelHeader');
 const pathWellTank = document.getElementById('svg-flow-t');
 const pathTankField = document.getElementById('svg-flow-i');
 
-// Terminal Elements
+// Terminal & Drawer Elements
+const btnOpenSerial = document.getElementById('btnOpenSerial');
+const btnCloseSerial = document.getElementById('btnCloseSerial');
+const serialDrawer = document.getElementById('serialDrawer');
+const serialOverlay = document.getElementById('serialOverlay');
 const termConsole = document.getElementById('termConsole');
 const termInput = document.getElementById('termInput');
 const btnSendTerm = document.getElementById('btnSendTerm');
@@ -80,6 +84,9 @@ async function fetchSensorData() {
         }
 
         updateUI(data);
+        if (typeof window.processAnalytics === 'function') {
+            window.processAnalytics(data);
+        }
 
     } catch (error) {
         setOnlineStatus(false);
@@ -287,6 +294,21 @@ function addLog(msg, type = "sys") {
 }
 
 // Terminal Interactivity
+
+// Drawer Toggle Logic
+function openDrawer() {
+    if(serialDrawer) serialDrawer.classList.add('open');
+    if(serialOverlay) serialOverlay.classList.add('open');
+}
+function closeDrawer() {
+    if(serialDrawer) serialDrawer.classList.remove('open');
+    if(serialOverlay) serialOverlay.classList.remove('open');
+}
+
+if(btnOpenSerial) btnOpenSerial.addEventListener('click', openDrawer);
+if(btnCloseSerial) btnCloseSerial.addEventListener('click', closeDrawer);
+if(serialOverlay) serialOverlay.addEventListener('click', closeDrawer);
+
 function sendCommand() {
     const text = termInput.value.trim();
     if(!text) return;
