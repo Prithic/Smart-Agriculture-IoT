@@ -176,6 +176,41 @@ input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
 .loading-spinner.active { opacity: 1; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* --- SERIAL MONITOR MODAL --- */
+.btn-serial { display: flex; align-items: center; gap: 0.5rem; background: #ffffff; border: 1px solid var(--border); color: var(--text-dark); padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.btn-serial:hover { background: #f3f4f6; border-color: #cbd5e1; transform: translateY(-1px); }
+.btn-serial i { font-size: 1.2rem; color: #4b5563; }
+
+.serial-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(4px); }
+.serial-modal.open { opacity: 1; pointer-events: auto; }
+
+.serial-content { width: 90%; max-width: 800px; height: 75vh; background: #1e1e1e; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: transform 0.3s; border: 1px solid #333; }
+.serial-modal.open .serial-content { transform: translateY(0); }
+
+.serial-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #252526; border-bottom: 1px solid #333; }
+.serial-header h3 { color: #cccccc; font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; margin: 0; }
+.close-btn { background: none; border: none; color: #858585; font-size: 1.8rem; cursor: pointer; transition: color 0.2s; line-height: 1; margin-top: -4px; }
+.close-btn:hover { color: #ffffff; }
+
+.serial-body { flex: 1; padding: 1rem; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5; }
+.serial-line { margin-bottom: 0.4rem; border-bottom: 1px dashed #333; padding-bottom: 0.2rem; word-break: break-all; }
+.serial-time { color: #569cd6; margin-right: 0.8rem; }
+.serial-data { color: #ce9178; }
+.serial-key { color: #9cdcfe; }
+.sys-msg { color: #4CAF50; font-style: italic; margin-bottom: 1rem; }
+
+.serial-footer { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1.5rem; background: #007acc; border-top: 1px solid #333; }
+.serial-status { color: white; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.6rem; }
+.serial-status .pulse-dot { background: #4CAF50; width: 10px; height: 10px; box-shadow: 0 0 8px #4CAF50; }
+.btn-clear { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s; }
+.btn-clear:hover { background: rgba(255,255,255,0.3); }
+
+/* Custom Scrollbar for Serial */
+.serial-body::-webkit-scrollbar { width: 8px; }
+.serial-body::-webkit-scrollbar-track { background: #1e1e1e; }
+.serial-body::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
+.serial-body::-webkit-scrollbar-thumb:hover { background: #555555; }
+
 /* --- RESPONSIVENESS --- */
 @media (max-width: 1024px) {
     .bottom-layout { grid-template-columns: 1fr; overflow-y: auto; }

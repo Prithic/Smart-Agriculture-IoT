@@ -24,6 +24,7 @@
                 </div>
             </div>
             <div class="header-actions">
+                <button class="btn-serial" id="btnOpenSerial"><i class='bx bx-terminal'></i> Serial Monitor</button>
                 <div class="status-indicator">
                     <div class="pulse-dot" id="connDot"></div>
                     <span id="headerStatusMsg">Offline</span>
@@ -32,7 +33,7 @@
                     <span class="mode-label" id="modeLabelHeader">MANUAL</span>
                     <label class="switch">
                         <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
-                        <span class="slider round"></span>
+                        <span class="slider"></span>
                     </label>
                 </div>
             </div>
@@ -99,13 +100,13 @@
                                         <stop offset="100%" stop-color="#0284c7" />
                                     </linearGradient>
                                 </defs>
-                                <!-- Well to Tank (tiny ripples) -->
-                                <path class="svg-pipe" d="M 15 50 Q 16.25 49, 17.5 50 T 20 50 T 22.5 50 T 25 50 T 27.5 50 T 30 50 T 32.5 50 T 35 50 T 37.5 50 T 40 50 T 42.5 50 T 45 50 T 47.5 50 T 50 50" />
-                                <path id="svg-flow-t" class="svg-flow" d="M 15 50 Q 16.25 49, 17.5 50 T 20 50 T 22.5 50 T 25 50 T 27.5 50 T 30 50 T 32.5 50 T 35 50 T 37.5 50 T 40 50 T 42.5 50 T 45 50 T 47.5 50 T 50 50" />
+                                <!-- Well to Tank (tight ~~~~~ wave) -->
+                                <path class="svg-pipe" d="M 15 50 Q 16.25 48, 17.5 50 T 20 50 T 22.5 50 T 25 50 T 27.5 50 T 30 50 T 32.5 50 T 35 50 T 37.5 50 T 40 50 T 42.5 50 T 45 50 T 47.5 50 T 50 50" />
+                                <path id="svg-flow-t" class="svg-flow" d="M 15 50 Q 16.25 48, 17.5 50 T 20 50 T 22.5 50 T 25 50 T 27.5 50 T 30 50 T 32.5 50 T 35 50 T 37.5 50 T 40 50 T 42.5 50 T 45 50 T 47.5 50 T 50 50" />
                                 
-                                <!-- Tank to Field (tiny ripples) -->
-                                <path class="svg-pipe" d="M 50 50 Q 51.25 49, 52.5 50 T 55 50 T 57.5 50 T 60 50 T 62.5 50 T 65 50 T 67.5 50 T 70 50 T 72.5 50 T 75 50 T 77.5 50 T 80 50 T 82.5 50 T 85 50" />
-                                <path id="svg-flow-i" class="svg-flow" d="M 50 50 Q 51.25 49, 52.5 50 T 55 50 T 57.5 50 T 60 50 T 62.5 50 T 65 50 T 67.5 50 T 70 50 T 72.5 50 T 75 50 T 77.5 50 T 80 50 T 82.5 50 T 85 50" />
+                                <!-- Tank to Field (tight ~~~~~ wave) -->
+                                <path class="svg-pipe" d="M 50 50 Q 51.25 48, 52.5 50 T 55 50 T 57.5 50 T 60 50 T 62.5 50 T 65 50 T 67.5 50 T 70 50 T 72.5 50 T 75 50 T 77.5 50 T 80 50 T 82.5 50 T 85 50" />
+                                <path id="svg-flow-i" class="svg-flow" d="M 50 50 Q 51.25 48, 52.5 50 T 55 50 T 57.5 50 T 60 50 T 62.5 50 T 65 50 T 67.5 50 T 70 50 T 72.5 50 T 75 50 T 77.5 50 T 80 50 T 82.5 50 T 85 50" />
                             </svg>
 
                             <!-- Well -->
@@ -226,6 +227,23 @@
             </div>
         </footer>
 
+    </div>
+
+    <!-- Serial Monitor Modal -->
+    <div class="serial-modal" id="serialModal">
+        <div class="serial-content">
+            <div class="serial-header">
+                <h3><i class='bx bx-terminal'></i> Serial Monitor (ESP32)</h3>
+                <button class="close-btn" id="btnCloseSerial">&times;</button>
+            </div>
+            <div class="serial-body" id="serialConsole">
+                <div class="sys-msg">--- Serial Monitor Opened (Baud: 115200) ---</div>
+            </div>
+            <div class="serial-footer">
+                <div class="serial-status"><div class="pulse-dot"></div> Connected via WebSocket</div>
+                <button class="btn-clear" id="btnClearSerial"><i class='bx bx-trash'></i> Clear Output</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>

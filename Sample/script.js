@@ -17,6 +17,13 @@ const modeLabelHeader = document.getElementById('modeLabelHeader');
 const pathWellTank = document.getElementById('svg-flow-t');
 const pathTankField = document.getElementById('svg-flow-i');
 
+// Serial Monitor Elements
+const btnOpenSerial = document.getElementById('btnOpenSerial');
+const btnCloseSerial = document.getElementById('btnCloseSerial');
+const btnClearSerial = document.getElementById('btnClearSerial');
+const serialModal = document.getElementById('serialModal');
+const serialConsole = document.getElementById('serialConsole');
+
 const nodeWellIcon = document.querySelector('#node-well .node-icon');
 const nodeTankIcon = document.getElementById('tankVisual');
 const nodeFieldIcon = document.querySelector('#node-field .node-icon');
@@ -74,6 +81,7 @@ async function fetchSensorData() {
             setOnlineStatus(true, true); // Simulated online
         }
 
+        if (typeof appendToSerial === 'function') appendToSerial(data);
         updateUI(data);
 
     } catch (error) {
@@ -314,3 +322,68 @@ window.onload = () => {
     fetchSensorData();
     setInterval(fetchSensorData, 2000);
 };
+
+// ==========================================
+// 8. SERIAL MONITOR LOGIC
+// ==========================================
+if(btnOpenSerial) {
+    btnOpenSerial.addEventListener('click', () => {
+        serialModal.classList.add('open');
+    });
+}
+if(btnCloseSerial) {
+    btnCloseSerial.addEventListener('click', () => {
+        serialModal.classList.remove('open');
+    });
+}
+if(btnClearSerial) {
+    btnClearSerial.addEventListener('click', () => {
+        serialConsole.innerHTML = '<div class="sys-msg">--- Serial Monitor Cleared ---</div>';
+    });
+}
+
+// Close on outside click
+window.addEventListener('click', (e) => {
+    if(e.target === serialModal) {
+        serialModal.classList.remove('open');
+    }
+});
+
+function appendToSerial(dataObj) {
+    if(!serialConsole) return;
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+    
+    // Format JSON heavily like Arduino IoT Cloud
+    let jsonFormatted = `<span class="serial-data">{</span> `;
+    const keys = Object.keys(dataObj);
+    keys.forEach((key, index) => {
+        let val = dataObj[key];
+        // add decimal to floats for realism if needed
+        if(typeof val === 'number' && key !== 'tankMotor' && key !== 'irrigationMotor' && key !== 'autoMode') {
+            val = val.toFixed(2);
+        }
+        jsonFormatted += `<span class="serial-key">"${key}"</span>: <span class="serial-data">${val}</span>`;
+        if(index < keys.length - 1) jsonFormatted += `, `;
+    });
+    jsonFormatted += ` <span class="serial-data">}</span>`;
+
+    const line = document.createElement('div');
+    line.className = 'serial-line';
+    line.innerHTML = `<span class="serial-time">[${timeStr}]</span> -> ${jsonFormatted}`;
+    
+    serialConsole.appendChild(line);
+    
+    // Auto scroll to bottom
+    serialConsole.scrollTop = serialConsole.scrollHeight;
+    
+    // Limit memory (keep last 100 lines)
+    if(serialConsole.children.length > 50) {
+        if(serialConsole.firstChild.classList && serialConsole.firstChild.classList.contains('sys-msg')) {
+            serialConsole.removeChild(serialConsole.children[1]);
+        } else {
+            serialConsole.removeChild(serialConsole.firstChild);
+        }
+    }
+}
