@@ -17,12 +17,11 @@ const modeLabelHeader = document.getElementById('modeLabelHeader');
 const pathWellTank = document.getElementById('svg-flow-t');
 const pathTankField = document.getElementById('svg-flow-i');
 
-// Serial Monitor Elements
-const btnOpenSerial = document.getElementById('btnOpenSerial');
-const btnCloseSerial = document.getElementById('btnCloseSerial');
-const btnClearSerial = document.getElementById('btnClearSerial');
-const serialModal = document.getElementById('serialModal');
-const serialConsole = document.getElementById('serialConsole');
+// Terminal Elements
+const termConsole = document.getElementById('termConsole');
+const termInput = document.getElementById('termInput');
+const btnSendTerm = document.getElementById('btnSendTerm');
+const btnClearTerm = document.getElementById('btnClearTerm');
 
 const nodeWellIcon = document.querySelector('#node-well .node-icon');
 const nodeTankIcon = document.getElementById('tankVisual');
@@ -54,7 +53,6 @@ const diagIrr = document.getElementById('diagIrr');
 const diagAlerts = document.getElementById('diagAlerts');
 
 // Footer
-const activityLogs = document.getElementById('activityLogs');
 const footConn = document.getElementById('footConn');
 const footTime = document.getElementById('footTime');
 const loadingSpinner = document.getElementById('loadingSpinner');
@@ -81,7 +79,6 @@ async function fetchSensorData() {
             setOnlineStatus(true, true); // Simulated online
         }
 
-        if (typeof appendToSerial === 'function') appendToSerial(data);
         updateUI(data);
 
     } catch (error) {
@@ -262,21 +259,66 @@ async function toggleControl(type) {
 }
 
 // ==========================================
-// 6. LOGGING
+// 6. LOGGING & TERMINAL
 // ==========================================
 function addLog(msg, type = "sys") {
-    const d = new Date();
-    const t = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
-    const el = document.createElement("div");
-    el.className = `log-entry ${type}`;
-    el.innerText = `[${t}] ${msg}`;
-    activityLogs.appendChild(el);
+    if(!termConsole) return;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
     
-    if (activityLogs.childElementCount > 20) {
-        activityLogs.removeChild(activityLogs.firstChild);
+    const line = document.createElement('div');
+    line.className = 'term-line';
+    if(type === 'sys') line.classList.add('sys-msg');
+    if(type === 'cmd') line.classList.add('cmd');
+    if(type === 'ok') line.classList.add('response');
+    
+    if(type === 'cmd') {
+        line.innerHTML = `<span class="term-time">[${timeStr}]</span> > ${msg}`;
+    } else {
+        line.innerHTML = `<span class="term-time">[${timeStr}]</span> ${msg}`;
     }
-    activityLogs.scrollTop = activityLogs.scrollHeight;
+    
+    termConsole.appendChild(line);
+    termConsole.scrollTop = termConsole.scrollHeight;
+    
+    if (termConsole.childElementCount > 150) {
+        termConsole.removeChild(termConsole.firstChild);
+    }
 }
+
+// Terminal Interactivity
+function sendCommand() {
+    const text = termInput.value.trim();
+    if(!text) return;
+    
+    // 1. Echo command
+    addLog(text, 'cmd');
+    termInput.value = '';
+    
+    // 2. Simulated Response
+    setTimeout(() => {
+        addLog(`Executed: ${text}`, 'ok');
+    }, 400);
+}
+
+if(btnSendTerm) {
+    btnSendTerm.addEventListener('click', sendCommand);
+}
+if(termInput) {
+    termInput.addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') sendCommand();
+    });
+}
+if(btnClearTerm) {
+    btnClearTerm.addEventListener('click', () => {
+        termConsole.innerHTML = '<div class="term-line sys-msg">--- Terminal Cleared ---</div>';
+    });
+}
+
+// System Ping Loop
+setInterval(() => {
+    addLog("System running...", "sys");
+}, 5000);
 
 // ==========================================
 // 7. SIMULATION FALLBACK
@@ -301,7 +343,6 @@ function generateSimData() {
     sTank = Math.max(0, Math.min(100, sTank));
     sSoil = Math.max(0, Math.min(100, sSoil));
 
-    // Auto logging logic
     if (window.lastTM !== tMotor) { addLog(`Tank ${tMotor ? 'Started Filling' : 'Stopped'}`, tMotor?'sys':'warn'); window.lastTM = tMotor; }
     if (window.lastIM !== iMotor) { addLog(`Irrigation ${iMotor ? 'ON' : 'OFF'}`, iMotor?'sys':'warn'); window.lastIM = iMotor; }
 
@@ -322,68 +363,3 @@ window.onload = () => {
     fetchSensorData();
     setInterval(fetchSensorData, 2000);
 };
-
-// ==========================================
-// 8. SERIAL MONITOR LOGIC
-// ==========================================
-if(btnOpenSerial) {
-    btnOpenSerial.addEventListener('click', () => {
-        serialModal.classList.add('open');
-    });
-}
-if(btnCloseSerial) {
-    btnCloseSerial.addEventListener('click', () => {
-        serialModal.classList.remove('open');
-    });
-}
-if(btnClearSerial) {
-    btnClearSerial.addEventListener('click', () => {
-        serialConsole.innerHTML = '<div class="sys-msg">--- Serial Monitor Cleared ---</div>';
-    });
-}
-
-// Close on outside click
-window.addEventListener('click', (e) => {
-    if(e.target === serialModal) {
-        serialModal.classList.remove('open');
-    }
-});
-
-function appendToSerial(dataObj) {
-    if(!serialConsole) return;
-    
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
-    
-    // Format JSON heavily like Arduino IoT Cloud
-    let jsonFormatted = `<span class="serial-data">{</span> `;
-    const keys = Object.keys(dataObj);
-    keys.forEach((key, index) => {
-        let val = dataObj[key];
-        // add decimal to floats for realism if needed
-        if(typeof val === 'number' && key !== 'tankMotor' && key !== 'irrigationMotor' && key !== 'autoMode') {
-            val = val.toFixed(2);
-        }
-        jsonFormatted += `<span class="serial-key">"${key}"</span>: <span class="serial-data">${val}</span>`;
-        if(index < keys.length - 1) jsonFormatted += `, `;
-    });
-    jsonFormatted += ` <span class="serial-data">}</span>`;
-
-    const line = document.createElement('div');
-    line.className = 'serial-line';
-    line.innerHTML = `<span class="serial-time">[${timeStr}]</span> -> ${jsonFormatted}`;
-    
-    serialConsole.appendChild(line);
-    
-    // Auto scroll to bottom
-    serialConsole.scrollTop = serialConsole.scrollHeight;
-    
-    // Limit memory (keep last 100 lines)
-    if(serialConsole.children.length > 50) {
-        if(serialConsole.firstChild.classList && serialConsole.firstChild.classList.contains('sys-msg')) {
-            serialConsole.removeChild(serialConsole.children[1]);
-        } else {
-            serialConsole.removeChild(serialConsole.firstChild);
-        }
-    }
-}

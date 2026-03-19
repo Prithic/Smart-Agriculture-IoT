@@ -22,9 +22,7 @@
                     <h1>Smart Agriculture System</h1>
                     <span>IoT-Based Farm Automation</span>
                 </div>
-            </div>
             <div class="header-actions">
-                <button class="btn-serial" id="btnOpenSerial"><i class='bx bx-terminal'></i> Serial Monitor</button>
                 <div class="status-indicator">
                     <div class="pulse-dot" id="connDot"></div>
                     <span id="headerStatusMsg">Offline</span>
@@ -137,11 +135,20 @@
                         </div>
                     </section>
 
-                    <!-- RECENT ACTIVITY (Moved here to balance empty vertical space) -->
-                    <section class="card activity">
-                        <h2 class="card-title"><i class='bx bx-list-ul'></i> Recent Activity</h2>
-                        <div class="console-box" id="activityLogs">
-                            <span class="muted-text">Waiting for system logs...</span>
+                    <!-- IN-LAYOUT TERMINAL -->
+                    <section class="card terminal-card">
+                        <div class="terminal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                            <h2 class="card-title" style="margin: 0;"><i class='bx bx-terminal'></i> Serial Monitor</h2>
+                            <button class="btn-clear-term" id="btnClearTerm"><i class='bx bx-trash'></i> Clear</button>
+                        </div>
+                        <div class="terminal-container">
+                            <div class="terminal-console" id="termConsole">
+                            </div>
+                            <div class="terminal-input-group">
+                                <span class="term-prompt">>&nbsp;</span>
+                                <input type="text" id="termInput" placeholder="Enter command..." autocomplete="off">
+                                <button id="btnSendTerm">Send</button>
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -227,23 +234,6 @@
             </div>
         </footer>
 
-    </div>
-
-    <!-- Serial Monitor Modal -->
-    <div class="serial-modal" id="serialModal">
-        <div class="serial-content">
-            <div class="serial-header">
-                <h3><i class='bx bx-terminal'></i> Serial Monitor (ESP32)</h3>
-                <button class="close-btn" id="btnCloseSerial">&times;</button>
-            </div>
-            <div class="serial-body" id="serialConsole">
-                <div class="sys-msg">--- Serial Monitor Opened (Baud: 115200) ---</div>
-            </div>
-            <div class="serial-footer">
-                <div class="serial-status"><div class="pulse-dot"></div> Connected via WebSocket</div>
-                <button class="btn-clear" id="btnClearSerial"><i class='bx bx-trash'></i> Clear Output</button>
-            </div>
-        </div>
     </div>
 
     <script src="script.js"></script>
