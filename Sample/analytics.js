@@ -116,187 +116,203 @@ function formatRuntime(ticks) {
 }
 
 window.processAnalytics = function(data) {
-    const now = new Date();
-    const timeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second:'2-digit' });
+    try {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second:'2-digit' });
 
-    // Arrays maintenance (Soil)
-    if(soilChart.data.labels.length > maxDataPoints) {
-        soilChart.data.labels.shift();
-        soilChart.data.datasets[0].data.shift();
-    }
-    soilChart.data.labels.push(timeLabel);
-    soilChart.data.datasets[0].data.push(data.soilMoisture);
-    soilChart.update();
+        // Arrays maintenance (Soil)
+        if(soilChart.data.labels.length > maxDataPoints) {
+            soilChart.data.labels.shift();
+            soilChart.data.datasets[0].data.shift();
+        }
+        soilChart.data.labels.push(timeLabel);
+        soilChart.data.datasets[0].data.push(data.soilMoisture);
+        soilChart.update();
 
-    // Arrays maintenance (Weather)
-    if(weatherChart.data.labels.length > maxDataPoints) {
-        weatherChart.data.labels.shift();
-        weatherChart.data.datasets[0].data.shift();
-        weatherChart.data.datasets[1].data.shift();
-    }
-    weatherChart.data.labels.push(timeLabel);
-    weatherChart.data.datasets[0].data.push(data.temperature);
-    weatherChart.data.datasets[1].data.push(data.humidity);
-    weatherChart.update();
+        // Arrays maintenance (Weather)
+        if(weatherChart.data.labels.length > maxDataPoints) {
+            weatherChart.data.labels.shift();
+            weatherChart.data.datasets[0].data.shift();
+            weatherChart.data.datasets[1].data.shift();
+        }
+        weatherChart.data.labels.push(timeLabel);
+        weatherChart.data.datasets[0].data.push(data.temperature);
+        weatherChart.data.datasets[1].data.push(data.humidity);
+        weatherChart.update();
 
-    // Arrays maintenance (Motor)
-    let anyMotorOn = 0;
+        // Arrays maintenance (Motor)
+        let anyMotorOn = 0;
 
-    // Irrigation Motor Logic
-    let currentIrrMotor = Number(data.irrigationMotor) === 1 ? 1 : 0;
-    if(currentIrrMotor === 1) {
-        anyMotorOn = 1;
-        totalWaterLiters += (FLOW_RATE_LPS * SECONDS_PER_TICK);
+        // Irrigation Motor Logic
+        let currentIrrMotor = Number(data.irrigationMotor) === 1 ? 1 : 0;
+        if(currentIrrMotor === 1) {
+            anyMotorOn = 1;
+            totalWaterLiters += (FLOW_RATE_LPS * SECONDS_PER_TICK);
+            
+            if(lastMotorState === 0) {
+                irrigationCount++;
+                startingMoistureBeforeIrrigation = Number(data.soilMoisture) || 0;
+                irrTicksSession = 0;
+            }
+            irrTicksSession++;
+            irrTicksToday++;
+            motorConsecutiveOnTicks++;
+            
+            // Alert: Dry Run Detection
+            if (previousTankLevel !== null && previousTankLevel === data.tankLevel && motorConsecutiveOnTicks > 3) {
+                if (typeof triggerAlert === 'function') {
+                    triggerAlert("warn", "Dry Run Detected", "Motor is actively running but water tank level is unchanged.");
+                }
+            }
+        } else {
+            if (lastMotorState === 1 && startingMoistureBeforeIrrigation !== null) {
+                let gained = (Number(data.soilMoisture) || 0) - startingMoistureBeforeIrrigation;
+                document.getElementById('insightEfficiency').innerText = `+${gained.toFixed(1)}% per cycle`;
+                startingMoistureBeforeIrrigation = null;
+            }
+            motorConsecutiveOnTicks = 0;
+        }
+        lastMotorState = currentIrrMotor;
+
+        // Tank Motor Logic
+        let currentTankMotor = Number(data.tankMotor) === 1 ? 1 : 0;
+        if(currentTankMotor === 1) {
+            anyMotorOn = 1;
+            if(lastTankMotorState === 0) tankTicksSession = 0;
+            tankTicksSession++;
+            tankTicksToday++;
+        }
+        lastTankMotorState = currentTankMotor;
+
+        if(motorChart.data.labels.length > maxDataPoints) {
+            motorChart.data.labels.shift();
+            motorChart.data.datasets[0].data.shift();
+        }
+        motorChart.data.labels.push(timeLabel);
+        motorChart.data.datasets[0].data.push(anyMotorOn);
+        motorChart.update();
+
+        // Energy Math: E = P * t (in hours) => 0.5 kW * (seconds / 3600)
+        let totalTicksToday = irrTicksToday + tankTicksToday;
+        let totalTicksSession = irrTicksSession + tankTicksSession;
+        let energyToday = POWER_KW * ((totalTicksToday * SECONDS_PER_TICK) / 3600);
+        let energySession = POWER_KW * ((totalTicksSession * SECONDS_PER_TICK) / 3600);
+        let costToday = energyToday * COST_PER_KWH;
+
+        // Averages Tracking
+        sumTemp += parseFloat(data.temperature);
+        sumMoist += parseFloat(data.soilMoisture);
+        readingsCount++;
+        const avgTemp = (sumTemp / readingsCount).toFixed(1);
+        const avgMoist = (sumMoist / readingsCount).toFixed(1);
+
+        // Smart Insights Calculations
+        if (previousMoisture !== null) {
+            let drop = previousMoisture - data.soilMoisture;
+            if (drop > 0) document.getElementById('insightDrying').innerText = `-${drop.toFixed(1)}% / 2s`;
+            else if (drop === 0) document.getElementById('insightDrying').innerText = `Stable`;
+        }
+        previousMoisture = data.soilMoisture;
+
+        let envMsg = "Nominal conditions.";
+        if (data.temperature > 32 && data.humidity < 40) envMsg = "High evapotranspiration. Needs more water.";
+        else if (data.temperature < 20 && data.humidity > 70) envMsg = "Low evaporation. Reduce watering.";
+        document.getElementById('insightEnv').innerText = envMsg;
+
+        // Weekly summary bounds
+        if (data.temperature > highestTemp) highestTemp = data.temperature;
+        if (data.soilMoisture < lowestMoist) lowestMoist = data.soilMoisture;
         
-        if(lastMotorState === 0) {
-            irrigationCount++;
-            startingMoistureBeforeIrrigation = Number(data.soilMoisture) || 0;
-            irrTicksSession = 0;
+        // Alerts Triggering
+        if (typeof triggerAlert === 'function') {
+            if (motorConsecutiveOnTicks > 15) triggerAlert("warn", "Extended Irrigation Warning", "Motor has been running continuously for suspiciously long.");
+            if (data.temperature > 40) triggerAlert("warn", "Critical Heat Anomaly", `Temperature exceeded 40°C (Current: ${data.temperature}°C)`);
+            if (data.soilMoisture < 20) {
+                drySoilConsecutiveTicks++;
+                if (drySoilConsecutiveTicks > 10) triggerAlert("warn", "Severe Soil Desiccation", "Soil moisture critically low for an extended period.");
+            } else {
+                drySoilConsecutiveTicks = 0;
+            }
         }
-        irrTicksSession++;
-        irrTicksToday++;
-        motorConsecutiveOnTicks++;
+
+        // Utilities
+        document.getElementById('trkIrrTime').innerText = formatRuntime(irrTicksToday);
+        document.getElementById('trkIrrSession').innerText = formatRuntime(irrTicksSession);
+        document.getElementById('trkTankTime').innerText = formatRuntime(tankTicksToday);
+        document.getElementById('trkTankSession').innerText = formatRuntime(tankTicksSession);
         
-        // Alert: Dry Run Detection
-        if (previousTankLevel !== null && previousTankLevel === data.tankLevel && motorConsecutiveOnTicks > 3) {
-            triggerAlert("warn", "Dry Run Detected", "Motor is actively running but water tank level is unchanged.");
+        document.getElementById('trkEnergyToday').innerText = `${energyToday.toFixed(3)} kWh`;
+        document.getElementById('trkEnergySession').innerText = `${energySession.toFixed(3)} kWh`;
+        document.getElementById('trkCostToday').innerText = `₹ ${costToday.toFixed(2)}`;
+        document.getElementById('trkPowerDraw').innerText = anyMotorOn ? `${POWER_KW} kW` : "0 kW";
+        document.getElementById('trkPowerDraw').className = anyMotorOn ? 'clr-red' : 'clr-green';
+
+        // Update Reports DOM
+        document.getElementById('repWater').innerText = `${totalWaterLiters.toFixed(2)} L`;
+        document.getElementById('repCycles').innerText = irrigationCount;
+        document.getElementById('repTemp').innerText = `${avgTemp} °C`;
+        document.getElementById('repMoist').innerText = `${avgMoist} %`;
+        
+        document.getElementById('repTotalRuntime').innerText = formatRuntime(totalTicksToday);
+        document.getElementById('repTotalEnergy').innerText = `${energyToday.toFixed(2)} kWh`;
+        document.getElementById('repTotalCost').innerText = `₹ ${costToday.toFixed(2)}`;
+
+        document.getElementById('repHighTemp').innerText = `${highestTemp.toFixed(1)} °C`;
+        document.getElementById('repLowMoist').innerText = `${lowestMoist.toFixed(1)} %`;
+        
+        // Weekly Estimates (Naive * 7)
+        let weekEnergy = energyToday * 7;
+        document.getElementById('repWeekWater').innerText = (totalWaterLiters * 7).toFixed(1);
+        document.getElementById('repWeekEnergy').innerText = `${weekEnergy.toFixed(2)} kWh`;
+        document.getElementById('repWeekCost').innerText = `₹ ${(weekEnergy * COST_PER_KWH).toFixed(2)}`;
+
+        // Energy Insight logic
+        const engInsight = document.getElementById('insightEnergyTxt');
+        const engIcon = document.getElementById('insightEnergyIcon');
+        if (engInsight && engIcon) {
+            if (energyToday > 2.0) {
+                engInsight.innerText = "High usage detected";
+                engIcon.style.color = '#dc2626'; // red
+            } else if (energyToday > 0.5) {
+                engInsight.innerText = "Nominal usage today";
+                engIcon.style.color = '#f59e0b'; // orange
+            } else {
+                engInsight.innerText = "Highly efficient";
+                engIcon.style.color = '#10b981'; // green
+            }
         }
-    } else {
-        if (lastMotorState === 1 && startingMoistureBeforeIrrigation !== null) {
-            let gained = (Number(data.soilMoisture) || 0) - startingMoistureBeforeIrrigation;
-            document.getElementById('insightEfficiency').innerText = `+${gained.toFixed(1)}% per cycle`;
-            startingMoistureBeforeIrrigation = null;
+
+        // Crop Health Indicator
+        const led = document.getElementById('cropStatusLed');
+        const txt = document.getElementById('cropStatusText');
+        const desc = document.getElementById('cropStatusDesc');
+
+        if (led && txt && desc) {
+            led.className = 'status-circle';
+            if (avgMoist > 40 && avgMoist < 80 && avgTemp > 20 && avgTemp < 30) {
+                led.classList.add('good');
+                led.innerHTML = "<i class='bx bx-check'></i>";
+                txt.innerText = "Optimal Health";
+                desc.innerText = "Soil moisture and thermal metrics are squarely in the optimal zone.";
+            } else if (avgMoist < 30 || avgMoist > 90 || avgTemp > 35) {
+                led.classList.add('critical');
+                led.innerHTML = "<i class='bx bx-x'></i>";
+                txt.innerText = "Critical Condition";
+                desc.innerText = "Severe risk of wilting or waterlogging detected.";
+            } else {
+                led.innerHTML = "<i class='bx bx-minus'></i>";
+                txt.innerText = "Moderate Warning";
+                desc.innerText = "Metrics are drifting outside ideal bounds; system auto-correcting.";
+            }
         }
-        motorConsecutiveOnTicks = 0;
+        
+        previousTankLevel = data.tankLevel;
+    } catch (err) {
+        console.error("CRITICAL ANALYTICS CRASH:", err);
+        if (typeof triggerAlert === 'function') {
+            triggerAlert("warn", "JS Execution Diagnostics", err.message);
+        }
     }
-    lastMotorState = currentIrrMotor;
-
-    // Tank Motor Logic (Assuming data.tankMotor exists, default 0)
-    let currentTankMotor = Number(data.tankMotor) === 1 ? 1 : 0;
-    if(currentTankMotor === 1) {
-        anyMotorOn = 1;
-        if(lastTankMotorState === 0) tankTicksSession = 0;
-        tankTicksSession++;
-        tankTicksToday++;
-    }
-    lastTankMotorState = currentTankMotor;
-
-    if(motorChart.data.labels.length > maxDataPoints) {
-        motorChart.data.labels.shift();
-        motorChart.data.datasets[0].data.shift();
-    }
-    motorChart.data.labels.push(timeLabel);
-    motorChart.data.datasets[0].data.push(anyMotorOn); // Graph any active motor
-    motorChart.update();
-
-    // Energy Math: E = P * t (in hours) => 0.5 kW * (seconds / 3600)
-    let totalTicksToday = irrTicksToday + tankTicksToday;
-    let totalTicksSession = irrTicksSession + tankTicksSession;
-    let energyToday = POWER_KW * ((totalTicksToday * SECONDS_PER_TICK) / 3600);
-    let energySession = POWER_KW * ((totalTicksSession * SECONDS_PER_TICK) / 3600);
-    let costToday = energyToday * COST_PER_KWH;
-
-    // Averages Tracking
-    sumTemp += parseFloat(data.temperature);
-    sumMoist += parseFloat(data.soilMoisture);
-    readingsCount++;
-    const avgTemp = (sumTemp / readingsCount).toFixed(1);
-    const avgMoist = (sumMoist / readingsCount).toFixed(1);
-
-    // Smart Insights Calculations
-    if (previousMoisture !== null) {
-        let drop = previousMoisture - data.soilMoisture;
-        if (drop > 0) document.getElementById('insightDrying').innerText = `-${drop.toFixed(1)}% / 2s`;
-        else if (drop === 0) document.getElementById('insightDrying').innerText = `Stable`;
-    }
-    previousMoisture = data.soilMoisture;
-
-    let envMsg = "Nominal conditions.";
-    if (data.temperature > 32 && data.humidity < 40) envMsg = "High evapotranspiration. Needs more water.";
-    else if (data.temperature < 20 && data.humidity > 70) envMsg = "Low evaporation. Reduce watering.";
-    document.getElementById('insightEnv').innerText = envMsg;
-
-    // Weekly summary bounds
-    if (data.temperature > highestTemp) highestTemp = data.temperature;
-    if (data.soilMoisture < lowestMoist) lowestMoist = data.soilMoisture;
-    
-    // Alerts Triggering
-    if (motorConsecutiveOnTicks > 15) triggerAlert("warn", "Extended Irrigation Warning", "Motor has been running continuously for suspiciously long.");
-    if (data.temperature > 40) triggerAlert("warn", "Critical Heat Anomaly", `Temperature exceeded 40°C (Current: ${data.temperature}°C)`);
-    if (data.soilMoisture < 20) {
-        drySoilConsecutiveTicks++;
-        if (drySoilConsecutiveTicks > 10) triggerAlert("warn", "Severe Soil Desiccation", "Soil moisture critically low for an extended period.");
-    } else {
-        drySoilConsecutiveTicks = 0;
-    }
-
-    // Utilities
-    document.getElementById('trkIrrTime').innerText = formatRuntime(irrTicksToday);
-    document.getElementById('trkIrrSession').innerText = formatRuntime(irrTicksSession);
-    document.getElementById('trkTankTime').innerText = formatRuntime(tankTicksToday);
-    document.getElementById('trkTankSession').innerText = formatRuntime(tankTicksSession);
-    
-    document.getElementById('trkEnergyToday').innerText = `${energyToday.toFixed(3)} kWh`;
-    document.getElementById('trkEnergySession').innerText = `${energySession.toFixed(3)} kWh`;
-    document.getElementById('trkCostToday').innerText = `₹ ${costToday.toFixed(2)}`;
-    document.getElementById('trkPowerDraw').innerText = anyMotorOn ? `${POWER_KW} kW` : "0 kW";
-    document.getElementById('trkPowerDraw').className = anyMotorOn ? 'clr-red' : 'clr-green';
-
-    // Update Reports DOM
-    document.getElementById('repWater').innerText = `${totalWaterLiters.toFixed(2)} L`;
-    document.getElementById('repCycles').innerText = irrigationCount;
-    document.getElementById('repTemp').innerText = `${avgTemp} °C`;
-    document.getElementById('repMoist').innerText = `${avgMoist} %`;
-    
-    document.getElementById('repTotalRuntime').innerText = formatRuntime(totalTicksToday);
-    document.getElementById('repTotalEnergy').innerText = `${energyToday.toFixed(2)} kWh`;
-    document.getElementById('repTotalCost').innerText = `₹ ${costToday.toFixed(2)}`;
-
-    document.getElementById('repHighTemp').innerText = `${highestTemp.toFixed(1)} °C`;
-    document.getElementById('repLowMoist').innerText = `${lowestMoist.toFixed(1)} %`;
-    // Weekly Estimates (Naive * 7)
-    let weekEnergy = energyToday * 7;
-    document.getElementById('repWeekWater').innerText = (totalWaterLiters * 7).toFixed(1);
-    document.getElementById('repWeekEnergy').innerText = `${weekEnergy.toFixed(2)} kWh`;
-    document.getElementById('repWeekCost').innerText = `₹ ${(weekEnergy * COST_PER_KWH).toFixed(2)}`;
-
-    // Energy Insight logic
-    const engInsight = document.getElementById('insightEnergyTxt');
-    const engIcon = document.getElementById('insightEnergyIcon');
-    if (energyToday > 2.0) {
-        engInsight.innerText = "High usage detected";
-        engIcon.style.color = '#dc2626'; // red
-    } else if (energyToday > 0.5) {
-        engInsight.innerText = "Nominal usage today";
-        engIcon.style.color = '#f59e0b'; // orange
-    } else {
-        engInsight.innerText = "Highly efficient";
-        engIcon.style.color = '#10b981'; // green
-    }
-
-    // Crop Health Indicator
-    const led = document.getElementById('cropStatusLed');
-    const txt = document.getElementById('cropStatusText');
-    const desc = document.getElementById('cropStatusDesc');
-
-    led.className = 'status-circle';
-    if (avgMoist > 40 && avgMoist < 80 && avgTemp > 20 && avgTemp < 30) {
-        led.classList.add('good');
-        led.innerHTML = "<i class='bx bx-check'></i>";
-        txt.innerText = "Optimal Health";
-        desc.innerText = "Soil moisture and thermal metrics are squarely in the optimal zone.";
-    } else if (avgMoist < 30 || avgMoist > 90 || avgTemp > 35) {
-        led.classList.add('critical');
-        led.innerHTML = "<i class='bx bx-x'></i>";
-        txt.innerText = "Critical Condition";
-        desc.innerText = "Severe risk of wilting or waterlogging detected.";
-    } else {
-        led.innerHTML = "<i class='bx bx-minus'></i>";
-        txt.innerText = "Moderate Warning";
-        desc.innerText = "Metrics are drifting outside ideal bounds; system auto-correcting.";
-    }
-    
-    previousTankLevel = data.tankLevel;
 };
 
 // ALERTS HELPER
