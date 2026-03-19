@@ -2,6 +2,7 @@
 // 1. CONFIGURATION
 // ==========================================
 const BASE_URL = ""; 
+const TANK_SAFETY_THRESHOLD = 5; // %
 
 // ==========================================
 // 2. DOM ELEMENTS
@@ -138,6 +139,17 @@ function updateUI(data) {
         nodeFieldStatus.className = "node-state badge-ok";
         nodeFieldStatus.innerText = "MOIST";
         soilValue.classList.remove('alert-text');
+    }
+
+    // 2.5 Safety Cutoff Logic (ENFORCE even in Manual)
+    if (tank < TANK_SAFETY_THRESHOLD && isIrrOn) {
+        addLog("EMERGENCY: Irrigation Cutoff - Tank Critically Low!", "warn");
+        if (typeof triggerAlert === 'function') {
+            triggerAlert("critical", "Motor Safety Cutoff", "Irrigation stopped to prevent dry running.");
+        }
+        // Force server sync to OFF
+        toggleControl('irrigation');
+        return; // Skip rest of UI update for this tick to prevent flickering
     }
 
     // 3. Flow Map Animations & Controls Linkage
@@ -361,7 +373,12 @@ function generateSimData() {
 
     if(mode && motorForceOnTicks === 0) {
         tMotor = sTank < 30 ? 1 : (sTank > 95 ? 0 : tMotor);
-        iMotor = sSoil < 40 && sTank > 10 ? 1 : (sSoil > 80 ? 0 : iMotor);
+        iMotor = sSoil < 40 && sTank >= TANK_SAFETY_THRESHOLD ? 1 : (sSoil > 80 || sTank < TANK_SAFETY_THRESHOLD ? 0 : iMotor);
+    }
+
+    // Manual Safety Override in Simulation
+    if (!mode && sTank < TANK_SAFETY_THRESHOLD) {
+        iMotor = 0; 
     }
 
     if (motorForceOnTicks > 0) {
