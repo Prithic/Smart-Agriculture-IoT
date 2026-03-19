@@ -1,17 +1,35 @@
-// analytics.js
-// --- TAB NAVIGATION ---
-const tabBtns = document.querySelectorAll('.tab-btn');
+// --- DROPDOWN NAVIGATION ---
+const dropdownLinks = document.querySelectorAll('.dropdown-link');
 const viewSections = document.querySelectorAll('.view-section');
+const btnHamburger = document.getElementById('btnHamburger');
+const navDropdown = document.getElementById('navDropdown');
 
-tabBtns.forEach(btn => {
+function toggleDropdown(e) {
+    if(navDropdown) navDropdown.classList.toggle('open');
+    if(e) e.stopPropagation();
+}
+
+function closeDropdown() {
+    if(navDropdown) navDropdown.classList.remove('open');
+}
+
+if(btnHamburger) btnHamburger.addEventListener('click', toggleDropdown);
+
+// Close dropdown when clicking outside
+window.addEventListener('click', (e) => {
+    if(navDropdown && navDropdown.classList.contains('open') && !btnHamburger.contains(e.target) && !navDropdown.contains(e.target)) {
+        closeDropdown();
+    }
+});
+
+dropdownLinks.forEach(btn => {
     btn.addEventListener('click', () => {
-        // Remove active class
-        tabBtns.forEach(b => b.classList.remove('active'));
+        dropdownLinks.forEach(b => b.classList.remove('active'));
         viewSections.forEach(v => v.classList.remove('active'));
         
-        // Add active class
         btn.classList.add('active');
         document.getElementById(btn.getAttribute('data-target')).classList.add('active');
+        closeDropdown();
     });
 });
 
@@ -50,6 +68,13 @@ const waterChart = new Chart(waterCtx, {
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } }, animation: { duration: 0 } }
 });
 
+const motorCtx = document.getElementById('motorChart').getContext('2d');
+const motorChart = new Chart(motorCtx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Motor State (1=ON)', data: [], backgroundColor: '#f59e0b', barPercentage: 1.0, categoryPercentage: 1.0 }] },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.2, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } }, animation: { duration: 0 } }
+});
+
 // --- ANALYTICS DATA ENGINE ---
 let totalWaterLiters = 0;
 let irrigationCount = 0;
@@ -57,6 +82,16 @@ let lastMotorState = 0;
 let sumTemp = 0;
 let sumMoist = 0;
 let readingsCount = 0;
+
+// Smart Insights & Alerts Tracking
+let motorConsecutiveOnTicks = 0;
+let highestTemp = -999;
+let lowestMoist = 999;
+let lastAlertTimestamp = 0;
+let previousMoisture = null;
+let startingMoistureBeforeIrrigation = null;
+let drySoilConsecutiveTicks = 0;
+let previousTankLevel = null;
 
 // Flow rate constant (Liters per second of motor ON)
 const FLOW_RATE_LPS = 0.5;
@@ -87,13 +122,38 @@ window.processAnalytics = function(data) {
     weatherChart.data.datasets[1].data.push(data.humidity);
     weatherChart.update();
 
-    // Water Usage & Cycles
+    // Arrays maintenance (Motor)
+    if(motorChart.data.labels.length > maxDataPoints) {
+        motorChart.data.labels.shift();
+        motorChart.data.datasets[0].data.shift();
+    }
+    motorChart.data.labels.push(timeLabel);
+    motorChart.data.datasets[0].data.push(data.irrigationMotor);
+    motorChart.update();
+
+    // Water Usage & Cycles & Smart Alerts Check
     if(data.irrigationMotor === 1) {
-        // Motor is on during this 2-second tick
         totalWaterLiters += (FLOW_RATE_LPS * SECONDS_PER_TICK);
         
-        // Count cycles (edge detection 0 to 1)
-        if(lastMotorState === 0) irrigationCount++;
+        if(lastMotorState === 0) {
+            irrigationCount++;
+            startingMoistureBeforeIrrigation = data.soilMoisture;
+        }
+        
+        motorConsecutiveOnTicks++;
+        
+        // Alert: Dry Run Detection
+        if (previousTankLevel !== null && previousTankLevel === data.tankLevel && motorConsecutiveOnTicks > 3) {
+            triggerAlert("warn", "Dry Run Detected", "Motor is actively running but water tank level is unchanged.");
+        }
+    } else {
+        if (lastMotorState === 1 && startingMoistureBeforeIrrigation !== null) {
+            // Motor just turned off. Calculate Irrigation Efficiency.
+            let gained = data.soilMoisture - startingMoistureBeforeIrrigation;
+            document.getElementById('insightEfficiency').innerText = `+${gained.toFixed(1)}% per cycle`;
+            startingMoistureBeforeIrrigation = null;
+        }
+        motorConsecutiveOnTicks = 0;
     }
     lastMotorState = data.irrigationMotor;
     
@@ -108,18 +168,48 @@ window.processAnalytics = function(data) {
     const avgTemp = (sumTemp / readingsCount).toFixed(1);
     const avgMoist = (sumMoist / readingsCount).toFixed(1);
 
+    // Smart Insights Calculations
+    if (previousMoisture !== null) {
+        let drop = previousMoisture - data.soilMoisture;
+        if (drop > 0) document.getElementById('insightDrying').innerText = `-${drop.toFixed(1)}% / 2s`;
+        else if (drop === 0) document.getElementById('insightDrying').innerText = `Stable`;
+    }
+    previousMoisture = data.soilMoisture;
+
+    let envMsg = "Nominal conditions.";
+    if (data.temperature > 32 && data.humidity < 40) envMsg = "High evapotranspiration. Needs more water.";
+    else if (data.temperature < 20 && data.humidity > 70) envMsg = "Low evaporation. Reduce watering.";
+    document.getElementById('insightEnv').innerText = envMsg;
+
+    // Weekly summary bounds
+    if (data.temperature > highestTemp) highestTemp = data.temperature;
+    if (data.soilMoisture < lowestMoist) lowestMoist = data.soilMoisture;
+    
+    // Alerts Triggering
+    if (motorConsecutiveOnTicks > 15) triggerAlert("warn", "Extended Irrigation Warning", "Motor has been running continuously for suspiciously long.");
+    if (data.temperature > 40) triggerAlert("warn", "Critical Heat Anomaly", `Temperature exceeded 40°C (Current: ${data.temperature}°C)`);
+    if (data.soilMoisture < 20) {
+        drySoilConsecutiveTicks++;
+        if (drySoilConsecutiveTicks > 10) triggerAlert("warn", "Severe Soil Desiccation", "Soil moisture critically low for an extended period.");
+    } else {
+        drySoilConsecutiveTicks = 0;
+    }
+
     // Update Reports DOM
     document.getElementById('repWater').innerText = `${totalWaterLiters.toFixed(2)} L`;
     document.getElementById('repCycles').innerText = irrigationCount;
     document.getElementById('repTemp').innerText = `${avgTemp} °C`;
     document.getElementById('repMoist').innerText = `${avgMoist} %`;
+    document.getElementById('repHighTemp').innerText = `${highestTemp.toFixed(1)} °C`;
+    document.getElementById('repLowMoist').innerText = `${lowestMoist.toFixed(1)} %`;
+    document.getElementById('repWeekWater').innerText = (totalWaterLiters * 7).toFixed(1);
 
     // Crop Health Indicator
     const led = document.getElementById('cropStatusLed');
     const txt = document.getElementById('cropStatusText');
     const desc = document.getElementById('cropStatusDesc');
 
-    led.className = 'status-circle'; // reset
+    led.className = 'status-circle';
     if (avgMoist > 40 && avgMoist < 80 && avgTemp > 20 && avgTemp < 30) {
         led.classList.add('good');
         led.innerHTML = "<i class='bx bx-check'></i>";
@@ -131,9 +221,38 @@ window.processAnalytics = function(data) {
         txt.innerText = "Critical Condition";
         desc.innerText = "Severe risk of wilting or waterlogging detected.";
     } else {
-        // Moderate (yellow, default)
         led.innerHTML = "<i class='bx bx-minus'></i>";
         txt.innerText = "Moderate Warning";
         desc.innerText = "Metrics are drifting outside ideal bounds; system auto-correcting.";
     }
+    
+    previousTankLevel = data.tankLevel;
 };
+
+// ALERTS HELPER
+function triggerAlert(type, title, msg) {
+    const now = new Date();
+    if (now.getTime() - lastAlertTimestamp < 10000) return; // Anti-spam 10s cooldown
+    lastAlertTimestamp = now.getTime();
+    
+    const container = document.getElementById('alertsLogContainer');
+    const noAlerts = document.getElementById('noAlertsMsg');
+    if(noAlerts) noAlerts.style.display = 'none';
+
+    const box = document.createElement('div');
+    box.className = `alert-box ${type}`;
+    box.innerHTML = `
+        <div class="insight-icon" style="font-size: 1.8rem; color: ${type==='warn'?'#f59e0b':'#dc2626'};"><i class='bx bx-error'></i></div>
+        <div>
+            <div class="alert-time">${now.toLocaleTimeString()}</div>
+            <div class="alert-title">${title}</div>
+            <div class="alert-msg">${msg}</div>
+        </div>
+    `;
+    container.prepend(box);
+    if (container.children.length > 20) container.removeChild(container.lastChild);
+}
+
+document.getElementById('btnClearAlerts')?.addEventListener('click', () => {
+    document.getElementById('alertsLogContainer').innerHTML = `<div style="padding: 1rem; background: #f8fafc; border-radius: 8px; text-align: center; color: var(--text-muted); font-style: italic;" id="noAlertsMsg">No critical alerts detected. The system is operating nominally.</div>`;
+});

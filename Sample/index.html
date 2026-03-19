@@ -18,7 +18,17 @@
         
         <!-- HEADER -->
         <header class="top-bar">
-            <div class="brand">
+            <div class="brand" style="position: relative;">
+                <button class="hamburger-btn" id="btnHamburger"><i class='bx bx-menu'></i></button>
+                
+                <!-- HAMBURGER DROPDOWN -->
+                <div class="nav-dropdown" id="navDropdown">
+                    <button class="dropdown-link active" data-target="viewDashboard"><i class='bx bx-grid-alt'></i> Live Dashboard</button>
+                    <button class="dropdown-link" data-target="viewAnalytics"><i class='bx bx-line-chart'></i> Analytics Graphs</button>
+                    <button class="dropdown-link" data-target="viewReports"><i class='bx bx-file'></i> Summary Reports</button>
+                    <button class="dropdown-link" data-target="viewAlerts"><i class='bx bx-bell'></i> Smart Alerts</button>
+                </div>
+
                 <div class="brand-icon"><i class='bx bxs-leaf'></i></div>
                 <div class="brand-text">
                     <h1>Smart Agriculture System</h1>
@@ -40,13 +50,6 @@
                 </div>
             </div>
         </header>
-
-        <!-- TOP TABS NAVIGATION -->
-        <nav class="system-tabs">
-            <button class="tab-btn active" data-target="viewDashboard"><i class='bx bx-grid-alt'></i> Live Dashboard</button>
-            <button class="tab-btn" data-target="viewAnalytics"><i class='bx bx-line-chart'></i> Analytics</button>
-            <button class="tab-btn" data-target="viewReports"><i class='bx bx-file'></i> Summary Reports</button>
-        </nav>
 
         <!-- MAIN LAYOUT -->
         <main class="main-content">
@@ -218,6 +221,31 @@
 
             <!-- 2. ANALYTICS VIEW -->
             <div id="viewAnalytics" class="view-section">
+                <!-- Smart Insights Row -->
+                <div class="insights-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                    <div class="card insight-card" style="padding: 1rem; display: flex; align-items: flex-start; gap: 1rem;">
+                        <div class="insight-icon" style="font-size: 2rem; color: #f59e0b;"><i class='bx bx-trending-down'></i></div>
+                        <div>
+                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Soil Drying Rate</h3>
+                            <p id="insightDrying" style="font-weight: 600; font-size: 0.95rem;">Calculating...</p>
+                        </div>
+                    </div>
+                    <div class="card insight-card" style="padding: 1rem; display: flex; align-items: flex-start; gap: 1rem;">
+                        <div class="insight-icon" style="font-size: 2rem; color: #10b981;"><i class='bx bx-target-lock'></i></div>
+                        <div>
+                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Irrigation Efficiency</h3>
+                            <p id="insightEfficiency" style="font-weight: 600; font-size: 0.95rem;">Pending cycles...</p>
+                        </div>
+                    </div>
+                    <div class="card insight-card" style="padding: 1rem; display: flex; align-items: flex-start; gap: 1rem;">
+                        <div class="insight-icon" style="font-size: 2rem; color: #3b82f6;"><i class='bx bx-cloud-light-rain'></i></div>
+                        <div>
+                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Environmental Impact</h3>
+                            <p id="insightEnv" style="font-weight: 600; font-size: 0.95rem;">Awaiting baseline...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="analytics-grid">
                     <section class="card chart-card">
                         <h2 class="card-title"><i class='bx bx-water'></i> Soil Moisture Trend</h2>
@@ -233,10 +261,17 @@
                         </div>
                     </section>
 
-                    <section class="card chart-card full-width">
+                    <section class="card chart-card">
                         <h2 class="card-title"><i class='bx bx-bar-chart-alt-2'></i> Daily Water Usage Estimator (Liters)</h2>
                         <div class="chart-container">
                             <canvas id="waterChart"></canvas>
+                        </div>
+                    </section>
+                    
+                    <section class="card chart-card">
+                        <h2 class="card-title"><i class='bx bx-pulse'></i> Motor Activity Timeline</h2>
+                        <div class="chart-container">
+                            <canvas id="motorChart"></canvas>
                         </div>
                     </section>
                 </div>
@@ -245,26 +280,58 @@
             <!-- 3. REPORTS VIEW -->
             <div id="viewReports" class="view-section">
                 <div class="reports-grid">
-                    <section class="card report-card gradient-bg">
-                        <h2 class="card-title text-white"><i class='bx bx-leaf'></i> Crop Status Indicator</h2>
-                        <div class="crop-status-display">
-                            <div class="status-circle" id="cropStatusLed"></div>
-                            <h3 id="cropStatusText">Analyzing...</h3>
-                            <p class="status-desc" id="cropStatusDesc">Waiting for active telemetry data to calculate health.</p>
-                        </div>
-                    </section>
-
+                    <!-- Daily Summary -->
                     <section class="card report-card">
                         <h2 class="card-title"><i class='bx bx-calendar-check'></i> Daily Summary Matrix</h2>
                         <ul class="report-list">
                             <li><span>Total Water Dispensed</span> <strong id="repWater">0 L</strong></li>
                             <li><span>Irrigation Cycles Triggered</span> <strong id="repCycles">0</strong></li>
                             <li><span>Rolling Avg Temperature</span> <strong id="repTemp">-- °C</strong></li>
+                            <li><span>Rolling Avg Humidity</span> <strong id="repHumid">-- %</strong></li>
                             <li><span>Rolling Avg Moisture</span> <strong id="repMoist">-- %</strong></li>
                         </ul>
                     </section>
+
+                    <!-- Weekly Summary -->
+                    <section class="card report-card">
+                        <h2 class="card-title"><i class='bx bx-calendar-week'></i> Weekly Summary Prototype</h2>
+                        <ul class="report-list">
+                            <li><span>Estimated Weekly Usage</span> <strong><span id="repWeekWater">0</span> L</strong></li>
+                            <li><span>Highest Temp (7d)</span> <strong class="clr-red" id="repHighTemp">-- °C</strong></li>
+                            <li><span>Lowest Moisture (7d)</span> <strong class="clr-orange" id="repLowMoist">-- %</strong></li>
+                        </ul>
+                        <div style="margin-top: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Weekly patterns will accurately populate after 7 days of uptime.</div>
+                    </section>
+
+                    <!-- Crop Status -->
+                    <section class="card report-card gradient-bg full-width">
+                        <h2 class="card-title text-white"><i class='bx bx-leaf'></i> Crop Health Indicator</h2>
+                        <div class="crop-status-display" style="flex-direction: row; justify-content: space-evenly;">
+                            <div class="status-circle" id="cropStatusLed" style="width: 120px; height: 120px; font-size: 4rem;"></div>
+                            <div style="text-align: left; max-width: 400px;">
+                                <h3 id="cropStatusText" style="font-size: 1.5rem; margin-bottom: 0.5rem;">Analyzing...</h3>
+                                <p class="status-desc" id="cropStatusDesc" style="font-size: 1rem; line-height: 1.5;">Waiting for sufficient active telemetry data to calculate aggregate health conditions.</p>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div> <!-- End Reports View -->
+
+            <!-- 4. SMART ALERTS VIEW -->
+            <div id="viewAlerts" class="view-section">
+                <section class="card" style="min-height: 400px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg-main); margin-bottom: 1rem; padding-bottom: 0.5rem;">
+                        <h2 class="card-title" style="border: none; margin: 0; padding: 0;"><i class='bx bx-error-alt'></i> Intelligent System Alerts</h2>
+                        <button class="btn-clear-term" id="btnClearAlerts"><i class='bx bx-trash'></i> Clear Alerts</button>
+                    </div>
+                    
+                    <div id="alertsLogContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; text-align: center; color: var(--text-muted); font-style: italic;" id="noAlertsMsg">
+                            No critical alerts detected. The system is operating nominally.
+                        </div>
+                    </div>
+                </section>
+            </div> <!-- End Alerts View -->
 
         </main>
 

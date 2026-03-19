@@ -347,32 +347,59 @@ setInterval(() => {
 // ==========================================
 let sTank = 80;
 let sSoil = 60;
+let sTemp = 25.0;
+let sHum = 60.0;
+let motorForceOnTicks = 0;
+
 function generateSimData() {
     let mode = modeToggle.checked ? 1 : 0;
     let tMotor = tankToggle.checked ? 1 : 0;
     let iMotor = irrToggle.checked ? 1 : 0;
 
-    if(mode) {
+    // 5% chance to force an extreme event (bypassing normal mode to trigger alerts)
+    if (Math.random() < 0.05 && motorForceOnTicks === 0) motorForceOnTicks = 20;
+
+    if(mode && motorForceOnTicks === 0) {
         tMotor = sTank < 30 ? 1 : (sTank > 95 ? 0 : tMotor);
         iMotor = sSoil < 40 && sTank > 10 ? 1 : (sSoil > 80 ? 0 : iMotor);
     }
 
+    if (motorForceOnTicks > 0) {
+        iMotor = 1;
+        motorForceOnTicks--;
+    }
+
+    // Evaluate Motor Actions
     if(tMotor && !iMotor) { sTank += 3; }
     else if(tMotor && iMotor) { sTank += 1; sSoil += 2; }
     else if(!tMotor && iMotor) { sTank -= 2; sSoil += 2; }
-    else { sSoil -= 0.5; }
+    else { sSoil -= 0.5; } // default soil drying
 
+    // Rare Dry Run anomaly -> Tank motor runs but level doesn't increase, or Irrigation runs but tank doesn't drop
+    if (iMotor && Math.random() < 0.05) sTank += 2; 
+
+    // Slow drifting for Temp & Humidity
+    sTemp += (Math.random() - 0.45) * 0.5;
+    sHum += (Math.random() - 0.5) * 1.5;
+
+    // Anomalous Spikes
+    if (Math.random() < 0.01) sTemp = 42; 
+    if (Math.random() < 0.01) sSoil = 10; 
+
+    // Bounds checking
     sTank = Math.max(0, Math.min(100, sTank));
     sSoil = Math.max(0, Math.min(100, sSoil));
+    sTemp = Math.max(10, Math.min(45, sTemp));
+    sHum = Math.max(20, Math.min(100, sHum));
 
     if (window.lastTM !== tMotor) { addLog(`Tank ${tMotor ? 'Started Filling' : 'Stopped'}`, tMotor?'sys':'warn'); window.lastTM = tMotor; }
     if (window.lastIM !== iMotor) { addLog(`Irrigation ${iMotor ? 'ON' : 'OFF'}`, iMotor?'sys':'warn'); window.lastIM = iMotor; }
 
     return {
-        temperature: (25 + Math.random() * 2).toFixed(1),
-        humidity: (50 + Math.random() * 5).toFixed(1),
-        soilMoisture: sSoil,
-        tankLevel: sTank,
+        temperature: sTemp.toFixed(1),
+        humidity: sHum.toFixed(1),
+        soilMoisture: sSoil.toFixed(1),
+        tankLevel: sTank.toFixed(1),
         autoMode: mode,
         tankMotor: tMotor,
         irrigationMotor: iMotor
