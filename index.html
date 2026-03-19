@@ -3,159 +3,404 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Agriculture IoT Dashboard</title>
-    <!-- Boxicons for modern icons -->
+    <title>Smart Agriculture System</title>
+    <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <!-- Google Fonts for modern typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js for interactive graphs -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <!-- Background Animated Shapes -->
-    <div class="bg-shape shape-1"></div>
-    <div class="bg-shape shape-2"></div>
-    <div class="bg-shape shape-3"></div>
+    
+    <div class="app-layout">
+        
+        <!-- HEADER -->
+        <header class="top-bar">
+            <div class="brand" style="position: relative;">
+                <button class="hamburger-btn" id="btnHamburger"><i class='bx bx-menu'></i></button>
+                
+                <!-- HAMBURGER DROPDOWN -->
+                <div class="nav-dropdown" id="navDropdown">
+                    <button class="dropdown-link active" data-target="viewDashboard"><i class='bx bx-grid-alt'></i> Live Dashboard</button>
+                    <button class="dropdown-link" data-target="viewAnalytics"><i class='bx bx-line-chart'></i> Analytics Graphs</button>
+                    <button class="dropdown-link" data-target="viewReports"><i class='bx bx-file'></i> Summary Reports</button>
+                    <button class="dropdown-link" data-target="viewAlerts"><i class='bx bx-bell'></i> Smart Alerts</button>
+                </div>
 
-    <div class="dashboard-container glass-panel">
-        <!-- Header Section -->
-        <header class="header">
-            <div class="header-info">
-                <h1><i class='bx bx-leaf'></i> Smart Agri Dashboard</h1>
-                <div class="status-indicator">
-                    <div class="pulse-dot"></div>
-                    <p id="statusMessage" class="status-normal">System Online (Simulation Mode)</p>
+                <div class="brand-icon"><i class='bx bxs-leaf'></i></div>
+                <div class="brand-text">
+                    <h1>Smart Agriculture System</h1>
+                    <span>IoT-Based Farm Automation</span>
                 </div>
             </div>
-            <div class="header-meta">
-                <div class="header-buttons">
-                    <button id="refreshBtn" class="action-btn" onclick="manualRefresh()">
-                        <i class='bx bx-refresh' id="refreshIcon"></i> Refresh Data
-                    </button>
-                    <a href="https://app.arduino.cc/dashboards/a19bf0b4-076b-4bda-97ce-1609de1e528c" target="_blank" class="arduino-btn">
-                        <i class='bx bx-cloud'></i> Arduino Cloud
-                    </a>
+            <div class="header-actions">
+                <button class="btn-serial" id="btnOpenSerial"><i class='bx bx-terminal'></i> Serial Monitor</button>
+                <div class="status-indicator">
+                    <div class="pulse-dot" id="connDot"></div>
+                    <span id="headerStatusMsg">Offline</span>
                 </div>
-                <div class="last-updated">
-                    <i class='bx bx-time-five'></i> <span id="lastUpdated">--:--:--</span>
+                <div class="mode-toggle-group">
+                    <span class="mode-label" id="modeLabelHeader">MANUAL</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modeToggle" onchange="toggleControl('auto')">
+                        <span class="slider"></span>
+                    </label>
                 </div>
             </div>
         </header>
 
-        <!-- Main Cards Grid -->
-        <main class="cards-grid">
+        <!-- MAIN LAYOUT -->
+        <main class="main-content">
             
-            <!-- Temperature Card -->
-            <div class="card glass-card" id="tempCard">
-                <div class="card-header">
-                    <div class="icon-wrapper temp-icon">
-                        <i class='bx bxs-thermometer'></i>
-                    </div>
-                    <h3>Temperature</h3>
-                </div>
-                <div class="card-body">
-                    <div class="value-container">
-                        <span class="value" id="tempValue">--</span>
-                        <span class="unit">°C</span>
-                    </div>
-                </div>
-                <!-- Progress bar visualization -->
-                <div class="gauge-container">
-                    <div class="gauge-fill temp-fill" id="tempGauge" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <!-- Humidity Card -->
-            <div class="card glass-card" id="humCard">
-                <div class="card-header">
-                    <div class="icon-wrapper hum-icon">
-                        <i class='bx bx-water'></i>
-                    </div>
-                    <h3>Humidity</h3>
-                </div>
-                <div class="card-body">
-                    <div class="value-container">
-                        <span class="value" id="humValue">--</span>
-                        <span class="unit">%</span>
-                    </div>
-                </div>
-                <!-- Progress bar visualization -->
-                <div class="gauge-container">
-                    <div class="gauge-fill hum-fill" id="humGauge" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <!-- Chart Card -->
-            <div class="card glass-card chart-card">
-                <div class="card-header">
-                    <div class="icon-wrapper chart-icon">
-                        <i class='bx bx-line-chart'></i>
-                    </div>
-                    <h3>Live History</h3>
-                </div>
-                <div class="chart-container">
-                    <canvas id="historyChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Control Cards Group -->
-            <div class="controls-group">
-                <!-- Mode Card -->
-                <div class="card glass-card control-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper mode-icon">
-                            <i class='bx bx-cog'></i>
+            <!-- 1. DASHBOARD VIEW -->
+            <div id="viewDashboard" class="view-section active">
+                
+                <!-- TOP ROW: SENSOR DATA PANEL -->
+                <section class="card data-panel">
+                    <h2 class="card-title"><i class='bx bx-line-chart'></i> Real-Time Telemetry</h2>
+                    <div class="sensor-grid">
+                        
+                        <div class="data-box" id="tempBox">
+                            <div class="box-icon bg-orange"><i class='bx bxs-thermometer'></i></div>
+                            <div class="box-info">
+                                <span class="box-label">Field Temp</span>
+                                <div class="box-value"><span id="tempValue">--</span><small>°C</small></div>
+                            </div>
                         </div>
-                        <h3>System Mode</h3>
+
+                        <div class="data-box" id="humBox">
+                        <div class="box-icon bg-blue"><i class='bx bx-water'></i></div>
+                        <div class="box-info">
+                            <span class="box-label">Humidity</span>
+                            <div class="box-value"><span id="humValue">--</span><small>%</small></div>
+                        </div>
                     </div>
-                    <div class="card-body controls">
-                        <span class="control-label" id="modeLabel">Manual</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="modeToggle" onchange="toggleMode()">
-                            <span class="slider round"></span>
-                        </label>
+
+                    <div class="data-box" id="soilBox">
+                        <div class="box-icon bg-green"><i class='bx bx-leaf'></i></div>
+                        <div class="box-info">
+                            <span class="box-label">Soil Moisture</span>
+                            <div class="box-value"><span id="soilValue">--</span><small>%</small></div>
+                        </div>
+                    </div>
+
+                    <div class="data-box" id="tankLvlBox">
+                        <div class="box-icon bg-cyan"><i class='bx bx-droplet'></i></div>
+                        <div class="box-info">
+                            <span class="box-label">Tank Level</span>
+                            <div class="box-value"><span id="tankValue">--</span><small>%</small></div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- BOTTOM CONTENT: FLOW MAP (Left) & SYSTEM PANELS (Right) -->
+            <div class="bottom-layout">
+                
+                <!-- LEFT COLUMN -->
+                <div class="left-stack">
+                    <!-- A. FARM FLOW VISUAL -->
+                    <section class="card flow-card">
+                        <h2 class="card-title"><i class='bx bx-git-merge'></i> System Flow Topology</h2>
+                        <div class="flow-container horizontal-flow">
+                            
+                            <!-- Curved SVG Background Paths -->
+                            <svg class="flow-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="flow-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#7dd3fc" />
+                                        <stop offset="100%" stop-color="#0284c7" />
+                                    </linearGradient>
+                                </defs>
+                                <!-- Well to Tank (tight ~~~~~ wave) -->
+                                <path class="svg-pipe" d="M 15 50 Q 16.25 48, 17.5 50 T 20 50 T 22.5 50 T 25 50 T 27.5 50 T 30 50 T 32.5 50 T 35 50 T 37.5 50 T 40 50 T 42.5 50 T 45 50 T 47.5 50 T 50 50" />
+                                <path id="svg-flow-t" class="svg-flow" d="M 15 50 Q 16.25 48, 17.5 50 T 20 50 T 22.5 50 T 25 50 T 27.5 50 T 30 50 T 32.5 50 T 35 50 T 37.5 50 T 40 50 T 42.5 50 T 45 50 T 47.5 50 T 50 50" />
+                                
+                                <!-- Tank to Field (tight ~~~~~ wave) -->
+                                <path class="svg-pipe" d="M 50 50 Q 51.25 48, 52.5 50 T 55 50 T 57.5 50 T 60 50 T 62.5 50 T 65 50 T 67.5 50 T 70 50 T 72.5 50 T 75 50 T 77.5 50 T 80 50 T 82.5 50 T 85 50" />
+                                <path id="svg-flow-i" class="svg-flow" d="M 50 50 Q 51.25 48, 52.5 50 T 55 50 T 57.5 50 T 60 50 T 62.5 50 T 65 50 T 67.5 50 T 70 50 T 72.5 50 T 75 50 T 77.5 50 T 80 50 T 82.5 50 T 85 50" />
+                            </svg>
+
+                            <!-- Well -->
+                            <div class="flow-node" id="node-well">
+                                <div class="node-icon"><i class='bx bx-cloud-rain'></i></div>
+                                <span class="node-name">Well Source</span>
+                                <span class="node-state badge-ok" id="node-well-status">Ready</span>
+                            </div>
+
+                            <!-- Tank -->
+                            <div class="flow-node" id="node-tank">
+                                <div class="tank-visual" id="tankVisual">
+                                    <div class="tank-water" id="tankWaterLevel">
+                                        <div class="wave"></div>
+                                    </div>
+                                </div>
+                                <span class="node-name">Main Tank</span>
+                                <span class="node-state badge-warn" id="node-tank-status">--%</span>
+                            </div>
+
+                            <!-- Field -->
+                            <div class="flow-node" id="node-field">
+                                <div class="node-icon"><i class='bx bx-spa'></i></div>
+                                <span class="node-name">Crop Field</span>
+                                <span class="node-state badge-ok" id="node-field-status">--%</span>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- DIAGNOSTICS (Moved to balance structural gaps) -->
+                    <section class="card diagnostics">
+                        <h2 class="card-title"><i class='bx bx-info-circle'></i> Diagnostic Overview</h2>
+                        <ul class="diag-list">
+                            <li>
+                                <span class="diag-label">Active Mode</span>
+                                <span class="diag-value clr-green" id="diagMode">AUTO</span>
+                            </li>
+                            <li>
+                                <span class="diag-label">Well > Tank Intake</span>
+                                <span class="diag-value" id="diagTank">Idle</span>
+                            </li>
+                            <li>
+                                <span class="diag-label">Tank > Field Output</span>
+                                <span class="diag-value" id="diagIrr">Idle</span>
+                            </li>
+                            <li>
+                                <span class="diag-label">System Alerts</span>
+                                <span class="diag-value clr-green" id="diagAlerts">All Clear</span>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="right-stack">
+                    
+                    <!-- MANUAL CONTROLS -->
+                    <section class="card controls">
+                        <h2 class="card-title"><i class='bx bx-slider-alt'></i> Manual Controls</h2>
+                        
+                        <div class="control-grid">
+                            <!-- Water Motor -->
+                            <div class="control-item">
+                                <div class="control-info">
+                                    <i class='bx bx-water'></i>
+                                    <div class="text-group">
+                                        <span class="ctrl-title">Tank Fill Motor</span>
+                                        <span class="ctrl-badge badge-ok" id="tankMotorBadge">OFF</span>
+                                    </div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="tankToggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <!-- Soil Motor -->
+                            <div class="control-item">
+                                <div class="control-info">
+                                    <i class='bx bx-spray-can'></i>
+                                    <div class="text-group">
+                                        <span class="ctrl-title">Irrigation Motor</span>
+                                        <span class="ctrl-badge badge-warn" id="irrMotorBadge">OFF</span>
+                                    </div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="irrToggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </section>
+                </div> <!-- End right-stack -->
+
+            </div> <!-- End bottom-layout -->
+
+        </div> <!-- End Dashboard View -->
+
+        <!-- 2. ANALYTICS VIEW -->
+        <div id="viewAnalytics" class="view-section">
+                <!-- Smart Insights Row -->
+                <div class="insights-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                    <div class="card insight-card" style="padding: 1rem; display: flex; align-items: flex-start; gap: 1rem;">
+                        <div class="insight-icon" style="font-size: 2rem; color: #f59e0b;"><i class='bx bx-trending-down'></i></div>
+                        <div>
+                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Soil Drying Rate</h3>
+                            <p id="insightDrying" style="font-weight: 600; font-size: 0.95rem;">Calculating...</p>
+                        </div>
+                    </div>
+                    <div class="card insight-card" style="padding: 1rem; display: flex; align-items: flex-start; gap: 1rem;">
+                        <div class="insight-icon" style="font-size: 2rem; color: #10b981;"><i class='bx bx-target-lock'></i></div>
+                        <div>
+                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Irrigation Efficiency</h3>
+                            <p id="insightEfficiency" style="font-weight: 600; font-size: 0.95rem;">Pending cycles...</p>
+                        </div>
+                    </div>
+                    <div class="card insight-card" style="padding: 1rem; display: flex; align-items: flex-start; gap: 1rem;">
+                        <div class="insight-icon" style="font-size: 2rem; color: #10b981;" id="insightEnergyIcon"><i class='bx bx-bolt-circle'></i></div>
+                        <div>
+                            <h3 style="font-size: 0.9rem; color: var(--text-muted);">Energy Efficiency</h3>
+                            <p id="insightEnergyTxt" style="font-weight: 600; font-size: 0.95rem;">Pending run...</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Water Motor Card -->
-                <div class="card glass-card control-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper pump-icon">
-                            <i class='bx bx-droplet'></i>
-                        </div>
-                        <h3>Water Motor</h3>
-                    </div>
-                    <div class="card-body controls">
-                        <span class="control-label" id="waterMotorLabel">OFF</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="waterMotorToggle" onchange="toggleWaterMotor()">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
+                <!-- Energy & Motor Usage Row -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                    <!-- Motor Usage Card -->
+                    <section class="card report-card">
+                        <h2 class="card-title"><i class='bx bx-timer'></i> Motor Runtime Tracking</h2>
+                        <ul class="report-list">
+                            <li><span>Irrigation Motor (Today)</span> <strong id="trkIrrTime">0m 0s</strong></li>
+                            <li><span>Irrigation (Last Session)</span> <strong id="trkIrrSession">0s</strong></li>
+                            <li><span>Tank Motor (Today)</span> <strong id="trkTankTime">0m 0s</strong></li>
+                            <li><span>Tank (Last Session)</span> <strong id="trkTankSession">0s</strong></li>
+                        </ul>
+                    </section>
+
+                    <!-- Electricity Tracking Card -->
+                    <section class="card report-card">
+                        <h2 class="card-title"><i class='bx bx-plug'></i> Electricity & Cost (0.5 kW)</h2>
+                        <ul class="report-list">
+                            <li><span>Energy Used Today</span> <strong id="trkEnergyToday">0.000 kWh</strong></li>
+                            <li><span>Energy (Last Session)</span> <strong id="trkEnergySession">0.000 kWh</strong></li>
+                            <li><span>Estimated Cost Today</span> <strong class="clr-red" id="trkCostToday">₹ 0.00</strong></li>
+                            <li><span>Current Power Draw</span> <strong class="clr-green" id="trkPowerDraw">0 kW</strong></li>
+                        </ul>
+                    </section>
                 </div>
 
-                <!-- Soil Motor Card -->
-                <div class="card glass-card control-card">
-                    <div class="card-header">
-                        <div class="icon-wrapper soil-icon">
-                            <i class='bx bx-spa'></i>
+                <div class="analytics-grid">
+                    <section class="card chart-card">
+                        <h2 class="card-title"><i class='bx bx-water'></i> Soil Moisture Trend</h2>
+                        <div class="chart-container">
+                            <canvas id="soilChart"></canvas>
                         </div>
-                        <h3>Soil Motor</h3>
-                    </div>
-                    <div class="card-body controls">
-                        <span class="control-label" id="soilMotorLabel">OFF</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="soilMotorToggle" onchange="toggleSoilMotor()">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
+                    </section>
+                    
+                    <section class="card chart-card">
+                        <h2 class="card-title"><i class='bx bx-line-chart-down'></i> Temperature & Humidity</h2>
+                        <div class="chart-container">
+                            <canvas id="weatherChart"></canvas>
+                        </div>
+                    </section>
+
+                    <section class="card chart-card">
+                        <h2 class="card-title"><i class='bx bx-bar-chart-alt-2'></i> Daily Water Usage Estimator (Liters)</h2>
+                        <div class="chart-container">
+                            <canvas id="waterChart"></canvas>
+                        </div>
+                    </section>
+                    
                 </div>
-            </div>
+            </div> <!-- End Analytics View -->
+
+            <!-- 3. REPORTS VIEW -->
+            <div id="viewReports" class="view-section">
+                <div class="reports-grid">
+                    <!-- Daily Summary -->
+                    <section class="card report-card">
+                        <h2 class="card-title"><i class='bx bx-calendar-check'></i> Daily Summary Matrix</h2>
+                        <ul class="report-list">
+                            <li><span>Total Water Dispensed</span> <strong id="repWater">0 L</strong></li>
+                            <li><span>Irrigation Cycles</span> <strong id="repCycles">0</strong></li>
+                            <li><span>Rolling Avg Temperature</span> <strong id="repTemp">-- °C</strong></li>
+                            <li><span>Rolling Avg Humidity</span> <strong id="repHumid">-- %</strong></li>
+                            <li><span>Rolling Avg Moisture</span> <strong id="repMoist">-- %</strong></li>
+                            <li style="border-top: 1px dashed #e2e8f0; margin-top: 0.5rem; padding-top: 0.5rem;"><span>Total Motor Runtime</span> <strong id="repTotalRuntime">0m</strong></li>
+                            <li><span>Total Energy</span> <strong id="repTotalEnergy">0.00 kWh</strong></li>
+                            <li><span>Total Cost Estimate</span> <strong class="clr-red" id="repTotalCost">₹ 0.00</strong></li>
+                        </ul>
+                    </section>
+
+                    <!-- Weekly Summary -->
+                    <section class="card report-card">
+                        <h2 class="card-title"><i class='bx bx-calendar-week'></i> Weekly Summary Prototype</h2>
+                        <ul class="report-list">
+                            <li><span>Estimated Weekly Water</span> <strong><span id="repWeekWater">0</span> L</strong></li>
+                            <li><span>Estimated Weekly Energy</span> <strong id="repWeekEnergy">0.00 kWh</strong></li>
+                            <li><span>Estimated Weekly Cost</span> <strong class="clr-red" id="repWeekCost">₹ 0.00</strong></li>
+                            <li><span>Highest Temp (7d)</span> <strong class="clr-red" id="repHighTemp">-- °C</strong></li>
+                            <li><span>Lowest Moisture (7d)</span> <strong class="clr-orange" id="repLowMoist">-- %</strong></li>
+                        </ul>
+                        <div style="margin-top: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Weekly patterns will accurately populate after 7 days of uptime.</div>
+                    </section>
+
+                    <!-- Crop Status -->
+                    <section class="card report-card gradient-bg full-width">
+                        <h2 class="card-title text-white"><i class='bx bx-leaf'></i> Crop Health Indicator</h2>
+                        <div class="crop-status-display" style="flex-direction: row; justify-content: space-evenly;">
+                            <div class="status-circle" id="cropStatusLed" style="width: 120px; height: 120px; font-size: 4rem;"></div>
+                            <div style="text-align: left; max-width: 400px;">
+                                <h3 id="cropStatusText" style="font-size: 1.5rem; margin-bottom: 0.5rem;">Analyzing...</h3>
+                                <p class="status-desc" id="cropStatusDesc" style="font-size: 1rem; line-height: 1.5;">Waiting for sufficient active telemetry data to calculate aggregate health conditions.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div> <!-- End Reports View -->
+
+            <!-- 4. SMART ALERTS VIEW -->
+            <div id="viewAlerts" class="view-section">
+                <section class="card" style="min-height: 400px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg-main); margin-bottom: 1rem; padding-bottom: 0.5rem;">
+                        <h2 class="card-title" style="border: none; margin: 0; padding: 0;"><i class='bx bx-error-alt'></i> Intelligent System Alerts</h2>
+                        <button class="btn-clear-term" id="btnClearAlerts"><i class='bx bx-trash'></i> Clear Alerts</button>
+                    </div>
+                    
+                    <div id="alertsLogContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; text-align: center; color: var(--text-muted); font-style: italic;" id="noAlertsMsg">
+                            No critical alerts detected. The system is operating nominally.
+                        </div>
+                    </div>
+                </section>
+            </div> <!-- End Alerts View -->
 
         </main>
+
+        <!-- FOOTER -->
+        <footer class="bottom-bar">
+            <div class="foot-col">
+                <i class='bx bx-network-chart'></i> <span id="footConn">Fetching configuration...</span>
+            </div>
+            <div class="foot-col center">
+                <i class='bx bx-time-five'></i> Last Updated: <span id="footTime">--:--:--</span>
+                <span class="loading-spinner" id="loadingSpinner"></span>
+            </div>
+            <div class="foot-col right">
+                <i class='bx bx-server'></i> Edge IP: <span id="footIp">192.168.x.x</span>
+            </div>
+        </footer>
+
     </div>
 
+    <!-- OFF-CANVAS SERIAL DRAWER -->
+    <div class="serial-drawer" id="serialDrawer">
+        <div class="terminal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #252526; border-bottom: 1px solid #333;">
+            <h2 class="card-title" style="margin: 0; color: #ccc; font-size: 1.1rem;"><i class='bx bx-terminal'></i> Serial Monitor</h2>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="btn-clear-term" id="btnClearTerm"><i class='bx bx-trash'></i> Clear</button>
+                <button class="close-btn" id="btnCloseSerial" style="color: #fff; background: transparent; border: none; font-size: 1.8rem; cursor: pointer;">&times;</button>
+            </div>
+        </div>
+        <div class="terminal-container" style="display: flex; flex-direction: column; flex: 1; height: calc(100vh - 60px);">
+            <div class="terminal-console" id="termConsole" style="flex: 1; background: #0b0c10; padding: 1rem; color: #4CAF50; font-family: Consolas, monospace; font-size: 0.85rem; overflow-y: auto;">
+            </div>
+            <div class="terminal-input-group" style="display: flex; align-items: center; background: #1f2937; padding: 0.8rem 1rem; border-top: 1px solid #374151;">
+                <span class="term-prompt" style="color: #4CAF50; font-family: Consolas, monospace; font-weight: bold; font-size: 1rem; margin-top: -2px;">>&nbsp;</span>
+                <input type="text" id="termInput" placeholder="Enter command..." autocomplete="off" style="flex: 1; background: transparent; border: none; outline: none; color: #ffffff; font-family: Consolas, monospace; font-size: 0.9rem; margin-left: 0.5rem;">
+                <button id="btnSendTerm" style="background: #3b82f6; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-left: 0.5rem;">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY (Dims background when drawer is opened) -->
+    <div class="serial-overlay" id="serialOverlay"></div>
+
     <script src="script.js"></script>
+    <script src="analytics.js"></script>
 </body>
 </html>

@@ -68,13 +68,6 @@ const waterChart = new Chart(waterCtx, {
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } }, animation: { duration: 0 } }
 });
 
-const motorCtx = document.getElementById('motorChart').getContext('2d');
-const motorChart = new Chart(motorCtx, {
-    type: 'bar',
-    data: { labels: [], datasets: [{ label: 'Motor State (1=ON)', data: [], backgroundColor: '#f59e0b', barPercentage: 1.0, categoryPercentage: 1.0 }] },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1.2, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } }, animation: { duration: 0 } }
-});
-
 // --- ANALYTICS DATA ENGINE ---
 let totalWaterLiters = 0;
 let irrigationCount = 0;
@@ -183,14 +176,6 @@ window.processAnalytics = function(data) {
             tankTicksToday++;
         }
         lastTankMotorState = currentTankMotor;
-
-        if(motorChart.data.labels.length > maxDataPoints) {
-            motorChart.data.labels.shift();
-            motorChart.data.datasets[0].data.shift();
-        }
-        motorChart.data.labels.push(timeLabel);
-        motorChart.data.datasets[0].data.push(anyMotorOn);
-        motorChart.update();
 
         // Energy Math: E = P * t (in hours) => 0.5 kW * (seconds / 3600)
         let totalTicksToday = irrTicksToday + tankTicksToday;

@@ -1,264 +1,414 @@
-/**
- * Smart Agriculture IoT Dashboard Logic
- * Hybrid Mode + Node-RED Integration + Chart Visualization
- */
+// ==========================================
+// 1. CONFIGURATION
+// ==========================================
+const BASE_URL = ""; 
 
 // ==========================================
-// 1. CONFIGURATION & DOM ELEMENTS
+// 2. DOM ELEMENTS
 // ==========================================
-const API = "http://localhost:1880";
-const ALERT_TEMP = 35; // °C threshold for alert
 
-// DOM Elements
+// Header
+const connDot = document.getElementById('connDot');
+const headerStatusMsg = document.getElementById('headerStatusMsg');
+const modeToggle = document.getElementById('modeToggle');
+const modeLabelHeader = document.getElementById('modeLabelHeader');
+
+// Map Flow Elements
+const pathWellTank = document.getElementById('svg-flow-t');
+const pathTankField = document.getElementById('svg-flow-i');
+
+// Terminal & Drawer Elements
+const btnOpenSerial = document.getElementById('btnOpenSerial');
+const btnCloseSerial = document.getElementById('btnCloseSerial');
+const serialDrawer = document.getElementById('serialDrawer');
+const serialOverlay = document.getElementById('serialOverlay');
+const termConsole = document.getElementById('termConsole');
+const termInput = document.getElementById('termInput');
+const btnSendTerm = document.getElementById('btnSendTerm');
+const btnClearTerm = document.getElementById('btnClearTerm');
+
+const nodeWellIcon = document.querySelector('#node-well .node-icon');
+const nodeTankIcon = document.getElementById('tankVisual');
+const nodeFieldIcon = document.querySelector('#node-field .node-icon');
+
+const nodeTankStatus = document.getElementById('node-tank-status');
+const nodeFieldStatus = document.getElementById('node-field-status');
+const tankWaterLevel = document.getElementById('tankWaterLevel');
+
+// Sensor Panels
 const tempValue = document.getElementById('tempValue');
 const humValue = document.getElementById('humValue');
-const tempGauge = document.getElementById('tempGauge');
-const humGauge = document.getElementById('humGauge');
-const tempCard = document.getElementById('tempCard');
+const soilValue = document.getElementById('soilValue');
+const tankValue = document.getElementById('tankValue');
 
-const modeToggle = document.getElementById('modeToggle');
-const modeLabel = document.getElementById('modeLabel');
-const waterToggle = document.getElementById('waterMotorToggle');
-const waterLabel = document.getElementById('waterMotorLabel');
-const soilToggle = document.getElementById('soilMotorToggle');
-const soilLabel = document.getElementById('soilMotorLabel');
+// Controls
+const tankToggle = document.getElementById('tankToggle');
+const tankMotorBadge = document.getElementById('tankMotorBadge');
+const tankControlItem = tankToggle.closest('.control-item');
 
-const lastUpdatedTxt = document.getElementById('lastUpdated');
-const refreshIcon = document.getElementById('refreshIcon');
-const pulseDot = document.querySelector('.pulse-dot');
-const statusMessage = document.getElementById('statusMessage');
+const irrToggle = document.getElementById('irrToggle');
+const irrMotorBadge = document.getElementById('irrMotorBadge');
+const irrControlItem = irrToggle.closest('.control-item');
 
-// Chart instance
-let historyChart;
+// Diagnostics Section
+const diagMode = document.getElementById('diagMode');
+const diagTank = document.getElementById('diagTank');
+const diagIrr = document.getElementById('diagIrr');
+const diagAlerts = document.getElementById('diagAlerts');
+
+// Footer
+const footConn = document.getElementById('footConn');
+const footTime = document.getElementById('footTime');
+const loadingSpinner = document.getElementById('loadingSpinner');
+
+let isUpdating = false;
 
 // ==========================================
-// 2. CHART INITIALIZATION
+// 3. API POLLING & DATA HANDLING
 // ==========================================
-function initChart() {
-    const ctx = document.getElementById('historyChart').getContext('2d');
-    
-    // Gradient for temperature line
-    let tempGradient = ctx.createLinearGradient(0, 0, 0, 400);
-    tempGradient.addColorStop(0, 'rgba(251, 146, 60, 0.5)');   // Orange transparent
-    tempGradient.addColorStop(1, 'rgba(251, 146, 60, 0.0)');
+async function fetchSensorData() {
+    loadingSpinner.classList.add('active');
+    try {
+        let isSimulated = false;
+        let data;
 
-    // Gradient for humidity line
-    let humGradient = ctx.createLinearGradient(0, 0, 0, 400);
-    humGradient.addColorStop(0, 'rgba(56, 189, 248, 0.5)');    // Blue transparent
-    humGradient.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
-
-    // Setting up global font for chart
-    Chart.defaults.font.family = "'Poppins', sans-serif";
-    Chart.defaults.color = '#94a3b8';
-
-    historyChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [], // Time labels
-            datasets: [
-                {
-                    label: 'Temp (°C)',
-                    data: [],
-                    borderColor: '#f97316',
-                    backgroundColor: tempGradient,
-                    borderWidth: 3,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: '#f97316',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: 'Humidity (%)',
-                    data: [],
-                    borderColor: '#0ea5e9',
-                    backgroundColor: humGradient,
-                    borderWidth: 3,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: '#0ea5e9',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    fill: true,
-                    tension: 0.4
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: { boxWidth: 12, usePointStyle: true }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    titleColor: '#f8fafc',
-                    bodyColor: '#f8fafc',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1,
-                    padding: 10,
-                    displayColors: true,
-                    usePointStyle: true,
-                }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                    ticks: { maxTicksLimit: 7 }
-                },
-                y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                    suggestedMin: 10,
-                    suggestedMax: 80
-                }
-            },
-            interaction: { mode: 'index', intersect: false }
+        try {
+            const response = await fetch(`${BASE_URL}/data`);
+            if (!response.ok) throw new Error("Offline");
+            data = await response.json();
+            setOnlineStatus(true);
+        } catch(e) {
+            isSimulated = true;
+            data = generateSimData();
+            setOnlineStatus(true, true); // Simulated online
         }
+
+        updateUI(data);
+        if (typeof window.processAnalytics === 'function') {
+            window.processAnalytics(data);
+        }
+
+    } catch (error) {
+        setOnlineStatus(false);
+    } finally {
+        setTimeout(() => loadingSpinner.classList.remove('active'), 500); // Small delay for visual cue
+    }
+}
+
+// ==========================================
+// 4. UI UPDATER
+// ==========================================
+function updateUI(data) {
+    isUpdating = true;
+
+    // 1. Update Core Sensor Values
+    if(tempValue) tempValue.innerText = parseFloat(data.temperature).toFixed(1);
+    if(humValue) humValue.innerText = parseFloat(data.humidity).toFixed(1);
+    if(soilValue) soilValue.innerText = parseFloat(data.soilMoisture).toFixed(1);
+    if(tankValue) tankValue.innerText = parseFloat(data.tankLevel).toFixed(1);
+
+    const temp = parseFloat(data.temperature);
+    temp > 35 ? tempValue.classList.add('alert-text') : tempValue.classList.remove('alert-text');
+
+    const tank = parseFloat(data.tankLevel);
+    const moist = parseFloat(data.soilMoisture);
+    
+    // Set Tank Level Height Dynamically
+    if(tankWaterLevel) {
+        let validTank = Math.max(0, Math.min(100, tank));
+        tankWaterLevel.style.height = validTank + "%";
+    }
+
+    // 2. Tank Badge & Diagnostic Map Logic
+    if (tank < 30) {
+        nodeTankStatus.className = "node-state badge-alert";
+        nodeTankStatus.innerText = "LOW";
+        tankValue.classList.add('alert-text');
+    } else {
+        nodeTankStatus.className = `node-state ${tank > 90 ? 'badge-ok' : 'badge-warn'}`;
+        nodeTankStatus.innerText = `${tank.toFixed(0)}%`;
+        tankValue.classList.remove('alert-text');
+    }
+
+    if (moist < 35) {
+        nodeFieldStatus.className = "node-state badge-warn";
+        nodeFieldStatus.innerText = "DRY";
+        soilValue.classList.add('alert-text');
+    } else {
+        nodeFieldStatus.className = "node-state badge-ok";
+        nodeFieldStatus.innerText = "MOIST";
+        soilValue.classList.remove('alert-text');
+    }
+
+    // 3. Flow Map Animations & Controls Linkage
+    const isTankOn = Number(data.tankMotor) === 1;
+    const isIrrOn = Number(data.irrigationMotor) === 1;
+
+    // Tank Path
+    if (isTankOn) {
+        pathWellTank.classList.add('active');
+        nodeWellIcon.classList.add('node-well-active');
+        nodeTankIcon.classList.add('node-tank-active');
+        tankControlItem.classList.add('active-outline');
+        
+        diagTank.innerText = "Filling";
+        diagTank.className = "diag-value clr-blue";
+    } else {
+        pathWellTank.classList.remove('active');
+        nodeWellIcon.classList.remove('node-well-active');
+        nodeTankIcon.classList.remove('node-tank-active');
+        tankControlItem.classList.remove('active-outline');
+
+        diagTank.innerText = "Idle";
+        diagTank.className = "diag-value";
+    }
+
+    // Irr Path
+    if (isIrrOn) {
+        pathTankField.classList.add('active');
+        nodeFieldIcon.classList.add('node-field-active');
+        nodeTankIcon.classList.add('node-tank-active'); // Tank is also active if giving water
+        irrControlItem.classList.add('active-outline');
+
+        diagIrr.innerText = "Irrigating";
+        diagIrr.className = "diag-value clr-blue";
+    } else {
+        pathTankField.classList.remove('active');
+        nodeFieldIcon.classList.remove('node-field-active');
+        irrControlItem.classList.remove('active-outline');
+
+        diagIrr.innerText = "Idle";
+        diagIrr.className = "diag-value";
+    }
+
+    // 4. Update Switches and Badges
+    tankToggle.checked = isTankOn;
+    tankMotorBadge.innerText = isTankOn ? "ON" : "OFF";
+    tankMotorBadge.className = isTankOn ? "ctrl-status on" : "ctrl-status off";
+
+    irrToggle.checked = isIrrOn;
+    irrMotorBadge.innerText = isIrrOn ? "ON" : "OFF";
+    irrMotorBadge.className = isIrrOn ? "ctrl-status on" : "ctrl-status off";
+
+    const isAuto = data.autoMode === 1;
+    modeToggle.checked = isAuto;
+    modeLabelHeader.innerText = isAuto ? "AUTO" : "MANUAL";
+    modeLabelHeader.className = isAuto ? "mode-label auto" : "mode-label";
+
+    diagMode.innerText = isAuto ? "AUTO" : "MANUAL";
+    diagMode.className = isAuto ? "diag-value clr-green" : "diag-value clr-dark";
+
+    tankToggle.disabled = isAuto;
+    irrToggle.disabled = isAuto;
+
+    // 5. Global Alerts
+    let alerts = [];
+    if(tank < 30) alerts.push("Tank Empty");
+    if(moist < 35) alerts.push("Soil Dry");
+    if(temp > 35) alerts.push("Overheating");
+    
+    if (alerts.length > 0) {
+        diagAlerts.innerText = alerts.join(', ');
+        diagAlerts.className = "diag-value clr-red";
+    } else {
+        diagAlerts.innerText = "All Clear";
+        diagAlerts.className = "diag-value clr-green";
+    }
+
+    // 6. Time Update
+    footTime.innerText = new Date().toLocaleTimeString();
+
+    isUpdating = false;
+}
+
+function setOnlineStatus(online, simulated = false) {
+    if (online) {
+        connDot.className = "pulse-dot online";
+        headerStatusMsg.innerText = simulated ? "Online (Simulated)" : "Online";
+        footConn.innerText = simulated ? "Connected to Local Simulation" : "Connected to ESP32 Edge";
+    } else {
+        connDot.className = "pulse-dot";
+        headerStatusMsg.innerText = "Offline";
+        footConn.innerText = "Connection Lost. Retrying...";
+    }
+}
+
+// ==========================================
+// 5. MANUAL CONTROLS
+// ==========================================
+async function toggleControl(type) {
+    if (isUpdating) return;
+
+    let url = "";
+    let val = 0;
+
+    if (type === 'auto') {
+        val = modeToggle.checked ? 1 : 0;
+        url = `${BASE_URL}/mode?auto=${val}`;
+        addLog(`System shifted to ${val ? 'AUTO' : 'MANUAL'} mode`, 'sys');
+    } else if (type === 'tank') {
+        val = tankToggle.checked ? 1 : 0;
+        url = `${BASE_URL}/control?water=${val}`;
+        addLog(`Well Intake Motor turned ${val ? 'ON' : 'OFF'}`, val ? 'ok' : 'warn');
+    } else if (type === 'irrigation') {
+        val = irrToggle.checked ? 1 : 0;
+        url = `${BASE_URL}/control?soil=${val}`;
+        addLog(`Field Irrigation switched ${val ? 'ON' : 'OFF'}`, val ? 'ok' : 'warn');
+    }
+
+    try {
+        await fetch(url);
+        fetchSensorData();
+    } catch(e) {
+        // Fallback for simulation
+        fetchSensorData();
+    }
+}
+
+// ==========================================
+// 6. LOGGING & TERMINAL
+// ==========================================
+function addLog(msg, type = "sys") {
+    if(!termConsole) return;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+    
+    const line = document.createElement('div');
+    line.className = 'term-line';
+    if(type === 'sys') line.classList.add('sys-msg');
+    if(type === 'cmd') line.classList.add('cmd');
+    if(type === 'ok') line.classList.add('response');
+    
+    if(type === 'cmd') {
+        line.innerHTML = `<span class="term-time">[${timeStr}]</span> > ${msg}`;
+    } else {
+        line.innerHTML = `<span class="term-time">[${timeStr}]</span> ${msg}`;
+    }
+    
+    termConsole.appendChild(line);
+    termConsole.scrollTop = termConsole.scrollHeight;
+    
+    if (termConsole.childElementCount > 150) {
+        termConsole.removeChild(termConsole.firstChild);
+    }
+}
+
+// Terminal Interactivity
+
+// Drawer Toggle Logic
+function openDrawer() {
+    if(serialDrawer) serialDrawer.classList.add('open');
+    if(serialOverlay) serialOverlay.classList.add('open');
+}
+function closeDrawer() {
+    if(serialDrawer) serialDrawer.classList.remove('open');
+    if(serialOverlay) serialOverlay.classList.remove('open');
+}
+
+if(btnOpenSerial) btnOpenSerial.addEventListener('click', openDrawer);
+if(btnCloseSerial) btnCloseSerial.addEventListener('click', closeDrawer);
+if(serialOverlay) serialOverlay.addEventListener('click', closeDrawer);
+
+function sendCommand() {
+    const text = termInput.value.trim();
+    if(!text) return;
+    
+    // 1. Echo command
+    addLog(text, 'cmd');
+    termInput.value = '';
+    
+    // 2. Simulated Response
+    setTimeout(() => {
+        addLog(`Executed: ${text}`, 'ok');
+    }, 400);
+}
+
+if(btnSendTerm) {
+    btnSendTerm.addEventListener('click', sendCommand);
+}
+if(termInput) {
+    termInput.addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') sendCommand();
+    });
+}
+if(btnClearTerm) {
+    btnClearTerm.addEventListener('click', () => {
+        termConsole.innerHTML = '<div class="term-line sys-msg">--- Terminal Cleared ---</div>';
     });
 }
 
-function updateChartData(temp, hum) {
-    const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
-    const maxDataPoints = 15; // Keep last 15 ticks showing
-    
-    if (historyChart.data.labels.length > maxDataPoints) {
-        historyChart.data.labels.shift();
-        historyChart.data.datasets[0].data.shift();
-        historyChart.data.datasets[1].data.shift();
+// System Ping Loop
+setInterval(() => {
+    addLog("System running...", "sys");
+}, 5000);
+
+// ==========================================
+// 7. SIMULATION FALLBACK
+// ==========================================
+let sTank = 80;
+let sSoil = 60;
+let sTemp = 25.0;
+let sHum = 60.0;
+let motorForceOnTicks = 0;
+
+function generateSimData() {
+    let mode = modeToggle.checked ? 1 : 0;
+    let tMotor = tankToggle.checked ? 1 : 0;
+    let iMotor = irrToggle.checked ? 1 : 0;
+
+    // 5% chance to force an extreme event (bypassing normal mode to trigger alerts)
+    if (Math.random() < 0.05 && motorForceOnTicks === 0) motorForceOnTicks = 20;
+
+    if(mode && motorForceOnTicks === 0) {
+        tMotor = sTank < 30 ? 1 : (sTank > 95 ? 0 : tMotor);
+        iMotor = sSoil < 40 && sTank > 10 ? 1 : (sSoil > 80 ? 0 : iMotor);
     }
-    
-    // Convert logic to ensure numerical parsing
-    const tempNum = parseFloat(temp) || 0;
-    const humNum = parseFloat(hum) || 0;
 
-    // Only add logic if data is valid number
-    if(tempNum > 0 || humNum > 0) {
-        historyChart.data.labels.push(timeNow);
-        historyChart.data.datasets[0].data.push(tempNum);
-        historyChart.data.datasets[1].data.push(humNum);
-        historyChart.update('none'); // Update without full animation jump
+    if (motorForceOnTicks > 0) {
+        iMotor = 1;
+        motorForceOnTicks--;
     }
+
+    // Evaluate Motor Actions
+    if(tMotor && !iMotor) { sTank += 3; }
+    else if(tMotor && iMotor) { sTank += 1; sSoil += 2; }
+    else if(!tMotor && iMotor) { sTank -= 2; sSoil += 2; }
+    else { sSoil -= 0.5; } // default soil drying
+
+    // Rare Dry Run anomaly -> Tank motor runs but level doesn't increase, or Irrigation runs but tank doesn't drop
+    if (iMotor && Math.random() < 0.05) sTank += 2; 
+
+    // Slow drifting for Temp & Humidity
+    sTemp += (Math.random() - 0.45) * 0.5;
+    sHum += (Math.random() - 0.5) * 1.5;
+
+    // Anomalous Spikes
+    if (Math.random() < 0.01) sTemp = 42; 
+    if (Math.random() < 0.01) sSoil = 10; 
+
+    // Bounds checking
+    sTank = Math.max(0, Math.min(100, sTank));
+    sSoil = Math.max(0, Math.min(100, sSoil));
+    sTemp = Math.max(10, Math.min(45, sTemp));
+    sHum = Math.max(20, Math.min(100, sHum));
+
+    if (window.lastTM !== tMotor) { addLog(`Tank ${tMotor ? 'Started Filling' : 'Stopped'}`, tMotor?'sys':'warn'); window.lastTM = tMotor; }
+    if (window.lastIM !== iMotor) { addLog(`Irrigation ${iMotor ? 'ON' : 'OFF'}`, iMotor?'sys':'warn'); window.lastIM = iMotor; }
+
+    return {
+        temperature: sTemp.toFixed(1),
+        humidity: sHum.toFixed(1),
+        soilMoisture: sSoil.toFixed(1),
+        tankLevel: sTank.toFixed(1),
+        autoMode: mode,
+        tankMotor: tMotor,
+        irrigationMotor: iMotor
+    };
 }
 
-// ==========================================
-// 3. DATA FETCHING (Simulation Mode)
-// ==========================================
-
-async function fetchSensorData(isManual = false) {
-    try {
-        if (isManual) refreshIcon.classList.add('bx-spin');
-
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Generate fake data
-        const temp = (Math.random() * 15 + 20).toFixed(1); // 20 - 35
-        const hum = (Math.random() * 30 + 40).toFixed(1);  // 40 - 70
-
-        updateDashboardUI(temp, hum);
-        updateChartData(temp, hum);
-        
-        lastUpdatedTxt.innerText = new Date().toLocaleTimeString();
-        setSystemStatus(true);
-        
-    } catch (error) {
-        console.error("Error generating fake data:", error);
-        setSystemStatus(false);
-    } finally {
-        if (isManual) setTimeout(() => refreshIcon.classList.remove('bx-spin'), 500);
-    }
-}
-
-function manualRefresh() {
-    fetchSensorData(true);
-}
-
-// ==========================================
-// 4. UI UPDATES
-// ==========================================
-
-function updateDashboardUI(temp, hum) {
-    tempValue.innerText = temp;
-    humValue.innerText = hum;
-
-    const tVal = parseFloat(temp) || 0;
-    const hVal = parseFloat(hum) || 0;
-
-    // Map gauge widths (assuming ranges: temp 0-50, hum 0-100)
-    tempGauge.style.width = `${Math.min((tVal / 50) * 100, 100)}%`;
-    humGauge.style.width = `${Math.min((hVal / 100) * 100, 100)}%`;
-
-    // Apply alert styling for high temperature
-    if (tVal > ALERT_TEMP) {
-        tempValue.parentElement.parentElement.parentElement.classList.add("alert");
-        tempValue.classList.add("alert");
-    } else {
-        tempValue.parentElement.parentElement.parentElement.classList.remove("alert");
-        tempValue.classList.remove("alert");
-    }
-}
-
-function updateToggleUI(checkbox, label, isChecked, textOn, textOff) {
-    checkbox.checked = isChecked;
-    label.innerText = isChecked ? textOn : textOff;
-    label.className = isChecked ? "control-label active" : "control-label inactive";
-}
-
-function setSystemStatus(isOnline) {
-    if(isOnline) {
-        pulseDot.classList.remove('error');
-        statusMessage.innerText = "System Online";
-        statusMessage.className = "status-normal";
-    } else {
-        pulseDot.classList.add('error');
-        statusMessage.innerText = "Connection Error";
-        statusMessage.className = "status-alert";
-    }
-}
-
-// ==========================================
-// 5. TOGGLE EVENT HANDLERS
-// ==========================================
-function toggleMode() {
-    const isAuto = modeToggle.checked;
-    updateToggleUI(modeToggle, modeLabel, isAuto, "Auto", "Manual");
-    
-    waterToggle.disabled = isAuto;
-    soilToggle.disabled = isAuto;
-    
-    // To complete full integration later:
-    // fetch(`${API}/control`, { method: 'POST', body: JSON.stringify({ mode: isAuto }) })
-}
-
-function toggleWaterMotor() {
-    const isOn = waterToggle.checked;
-    updateToggleUI(waterToggle, waterLabel, isOn, "ON", "OFF");
-}
-
-function toggleSoilMotor() {
-    const isOn = soilToggle.checked;
-    updateToggleUI(soilToggle, soilLabel, isOn, "ON", "OFF");
-}
-
-// ==========================================
-// 6. INITIALIZATION
-// ==========================================
+// Init
 window.onload = () => {
-    initChart();
-    
-    // Initial fetch
+    addLog("Dashboard initialized", "ok");
     fetchSensorData();
-    
-    // Interval loop (3s)
-    setInterval(() => fetchSensorData(false), 3000);
-    
-    // Initialize UI state visually
-    updateToggleUI(modeToggle, modeLabel, modeToggle.checked, "Auto", "Manual");
-    updateToggleUI(waterToggle, waterLabel, waterToggle.checked, "ON", "OFF");
-    updateToggleUI(soilToggle, soilLabel, soilToggle.checked, "ON", "OFF");
+    setInterval(fetchSensorData, 2000);
 };
