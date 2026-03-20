@@ -4,8 +4,8 @@
 #include <DHT.h>
 
 // ===== WIFI =====
-const char* ssid = "12345678";
-const char* password = "12345678";
+const char* ssid = "YOUR_SSID";
+const char* password = "YOUR_PASSWORD";
 
 // ===== PINS =====
 #define DHTPIN 4
