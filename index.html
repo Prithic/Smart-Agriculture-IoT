@@ -379,23 +379,60 @@
 
     <!-- OFF-CANVAS SERIAL DRAWER -->
     <div class="serial-drawer" id="serialDrawer">
-        <div class="terminal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #252526; border-bottom: 1px solid #333;">
-            <h2 class="card-title" style="margin: 0; color: #ccc; font-size: 1.1rem;"><i class='bx bx-terminal'></i> Serial Monitor</h2>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <button class="btn-clear-term" id="btnClearTerm"><i class='bx bx-trash'></i> Clear</button>
-                <button class="close-btn" id="btnCloseSerial" style="color: #fff; background: transparent; border: none; font-size: 1.8rem; cursor: pointer;">&times;</button>
+        <!-- Terminal Title Bar -->
+        <div class="terminal-title-bar">
+            <div class="terminal-title">
+                <i class='bx bx-terminal'></i>
+                <span>Serial Monitor - ESP32 Edge</span>
+            </div>
+            <div class="terminal-actions">
+                <button class="terminal-action-btn" id="btnClearTerm" title="Clear Console"><i class='bx bx-trash'></i></button>
+                <button class="terminal-action-btn" id="btnDownloadLog" title="Download Log"><i class='bx bx-download'></i></button>
+                <button class="terminal-close-btn" id="btnCloseSerial">&times;</button>
             </div>
         </div>
-        <div class="terminal-container" style="display: flex; flex-direction: column; flex: 1; height: calc(100vh - 60px);">
-            <div class="terminal-console" id="termConsole" style="flex: 1; background: #0b0c10; padding: 1rem; color: #4CAF50; font-family: Consolas, monospace; font-size: 0.85rem; overflow-y: auto;">
+
+        <!-- Terminal Toolbar -->
+        <div class="terminal-toolbar">
+            <div class="toolbar-group">
+                <label for="baudRate">Baud:</label>
+                <select id="baudRate" class="terminal-select">
+                    <option value="9600">9600</option>
+                    <option value="115200" selected>115200</option>
+                </select>
             </div>
-            <div class="terminal-input-group" style="display: flex; align-items: center; background: #1f2937; padding: 0.8rem 1rem; border-top: 1px solid #374151;">
-                <span class="term-prompt" style="color: #4CAF50; font-family: Consolas, monospace; font-weight: bold; font-size: 1rem; margin-top: -2px;">>&nbsp;</span>
-                <input type="text" id="termInput" placeholder="Enter command..." autocomplete="off" style="flex: 1; background: transparent; border: none; outline: none; color: #ffffff; font-family: Consolas, monospace; font-size: 0.9rem; margin-left: 0.5rem;">
-                <button id="btnSendTerm" style="background: #3b82f6; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-left: 0.5rem;">Send</button>
+            <div class="toolbar-group">
+                <label class="terminal-checkbox">
+                    <input type="checkbox" id="chkAutoscroll" checked>
+                    <span>Autoscroll</span>
+                </label>
+            </div>
+            <div class="toolbar-group">
+                <label class="terminal-checkbox">
+                    <input type="checkbox" id="chkTimestamps" checked>
+                    <span>Timestamps</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Terminal Console -->
+        <div class="terminal-container">
+            <div class="terminal-console" id="termConsole">
+                <div class="term-line sys-msg">Connecting to serial stream...</div>
+                <div class="term-line sys-msg">Baud rate set to 115200.</div>
+            </div>
+            
+            <!-- Terminal Input -->
+            <div class="terminal-input-wrapper">
+                <span class="term-prompt">esp32:~$</span>
+                <input type="text" id="termInput" placeholder="Type a command..." autocomplete="off">
+                <button id="btnSendTerm" class="btn-send-cmd">
+                    <i class='bx bx-send'></i>
+                </button>
             </div>
         </div>
     </div>
+
 
     <!-- OVERLAY (Dims background when drawer is opened) -->
     <div class="serial-overlay" id="serialOverlay"></div>

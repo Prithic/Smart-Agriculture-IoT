@@ -18,7 +18,7 @@ const modeLabelHeader = document.getElementById('modeLabelHeader');
 const pathWellTank = document.getElementById('svg-flow-t');
 const pathTankField = document.getElementById('svg-flow-i');
 
-// Terminal & Drawer Elements
+// // Terminal & Drawer Elements
 const btnOpenSerial = document.getElementById('btnOpenSerial');
 const btnCloseSerial = document.getElementById('btnCloseSerial');
 const serialDrawer = document.getElementById('serialDrawer');
@@ -27,6 +27,10 @@ const termConsole = document.getElementById('termConsole');
 const termInput = document.getElementById('termInput');
 const btnSendTerm = document.getElementById('btnSendTerm');
 const btnClearTerm = document.getElementById('btnClearTerm');
+const btnDownloadLog = document.getElementById('btnDownloadLog');
+const chkAutoscroll = document.getElementById('chkAutoscroll');
+const chkTimestamps = document.getElementById('chkTimestamps');
+const baudRateSelect = document.getElementById('baudRate');
 
 const nodeWellIcon = document.querySelector('#node-well .node-icon');
 const nodeTankIcon = document.getElementById('tankVisual');
@@ -142,6 +146,7 @@ function updateUI(data) {
     }
 
     // 2.5 Safety Cutoff Logic (ENFORCE even in Manual)
+    const isIrrOn = Number(data.irrigationMotor) === 1;
     if (tank < TANK_SAFETY_THRESHOLD && isIrrOn) {
         addLog("EMERGENCY: Irrigation Cutoff - Tank Critically Low!", "warn");
         if (typeof triggerAlert === 'function') {
@@ -154,7 +159,6 @@ function updateUI(data) {
 
     // 3. Flow Map Animations & Controls Linkage
     const isTankOn = Number(data.tankMotor) === 1;
-    const isIrrOn = Number(data.irrigationMotor) === 1;
 
     // Tank Path
     if (isTankOn) {
@@ -278,40 +282,56 @@ async function toggleControl(type) {
 }
 
 // ==========================================
-// 6. LOGGING & TERMINAL
+// 6. LOGGING & TERMINAL (ENHANCED)
 // ==========================================
+let commandHistory = [];
+let historyIndex = -1;
+
 function addLog(msg, type = "sys") {
     if(!termConsole) return;
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
     
     const line = document.createElement('div');
-    line.className = 'term-line';
-    if(type === 'sys') line.classList.add('sys-msg');
-    if(type === 'cmd') line.classList.add('cmd');
-    if(type === 'ok') line.classList.add('response');
+    line.className = `term-line ${type}`;
     
-    if(type === 'cmd') {
-        line.innerHTML = `<span class="term-time">[${timeStr}]</span> > ${msg}`;
-    } else {
-        line.innerHTML = `<span class="term-time">[${timeStr}]</span> ${msg}`;
+    // Add Timestamp if enabled
+    if (chkTimestamps && chkTimestamps.checked) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const ts = document.createElement('span');
+        ts.className = 'term-timestamp';
+        ts.innerText = `[${timeStr}]`;
+        line.appendChild(ts);
     }
     
-    termConsole.appendChild(line);
-    termConsole.scrollTop = termConsole.scrollHeight;
+    const content = document.createElement('span');
+    if(type === 'cmd') {
+        content.innerText = `> ${msg}`;
+    } else {
+        content.innerText = msg;
+    }
+    line.appendChild(content);
     
-    if (termConsole.childElementCount > 150) {
+    termConsole.appendChild(line);
+    
+    // Autoscroll logic (Intelligent)
+    if (chkAutoscroll && chkAutoscroll.checked && !userScrolledUp) {
+        termConsole.scrollTop = termConsole.scrollHeight;
+    }
+
+    
+    // Limit lines to prevent memory bloat
+    if (termConsole.childElementCount > 200) {
         termConsole.removeChild(termConsole.firstChild);
     }
 }
 
 // Terminal Interactivity
-
-// Drawer Toggle Logic
 function openDrawer() {
     if(serialDrawer) serialDrawer.classList.add('open');
     if(serialOverlay) serialOverlay.classList.add('open');
+    termInput.focus();
 }
+
 function closeDrawer() {
     if(serialDrawer) serialDrawer.classList.remove('open');
     if(serialOverlay) serialOverlay.classList.remove('open');
@@ -325,34 +345,133 @@ function sendCommand() {
     const text = termInput.value.trim();
     if(!text) return;
     
-    // 1. Echo command
+    // 1. History management
+    commandHistory.push(text);
+    if(commandHistory.length > 50) commandHistory.shift();
+    historyIndex = -1;
+
+    // 2. Echo command
     addLog(text, 'cmd');
     termInput.value = '';
     
-    // 2. Simulated Response
+    // 3. Simulated/API Execution
     setTimeout(() => {
-        addLog(`Executed: ${text}`, 'ok');
-    }, 400);
+        if (text.toLowerCase() === 'help') {
+            addLog("Available: status, start, stop, reset, clear, mode auto|manual", "sys");
+        } else if (text.toLowerCase().startsWith('mode')) {
+            const m = text.split(' ')[1];
+            if (m === 'auto' || m === 'manual') {
+                addLog(`Switching to ${m.toUpperCase()}...`, "response");
+                modeToggle.checked = (m === 'auto');
+                toggleControl('auto');
+            } else {
+                addLog("Usage: mode auto | mode manual", "error");
+            }
+        } else {
+            addLog(`Command '${text}' executed successfully.`, 'response');
+        }
+    }, 300);
 }
 
-if(btnSendTerm) {
-    btnSendTerm.addEventListener('click', sendCommand);
+// System Ping Loop (Visual only)
+let heartbeatInterval;
+function startPing() {
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    const speed = baudRateSelect.value === "115200" ? 10000 : 20000;
+    heartbeatInterval = setInterval(() => {
+        if(serialDrawer && serialDrawer.classList.contains('open')) {
+            addLog("Pinging edge device...", "sys");
+        }
+    }, speed);
 }
+
+// Event Listeners for Terminal Controls
+if(btnSendTerm) btnSendTerm.addEventListener('click', sendCommand);
+
 if(termInput) {
-    termInput.addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') sendCommand();
+    termInput.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') {
+            sendCommand();
+        } else if(e.key === 'ArrowUp') {
+            if(commandHistory.length > 0) {
+                if(historyIndex === -1) historyIndex = commandHistory.length - 1;
+                else if(historyIndex > 0) historyIndex--;
+                termInput.value = commandHistory[historyIndex];
+                e.preventDefault();
+            }
+        } else if(e.key === 'ArrowDown') {
+            if(historyIndex !== -1) {
+                if(historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    termInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = -1;
+                    termInput.value = '';
+                }
+                e.preventDefault();
+            }
+        }
     });
 }
+
 if(btnClearTerm) {
     btnClearTerm.addEventListener('click', () => {
         termConsole.innerHTML = '<div class="term-line sys-msg">--- Terminal Cleared ---</div>';
     });
 }
 
-// System Ping Loop
-setInterval(() => {
-    addLog("System running...", "sys");
-}, 5000);
+if(btnDownloadLog) {
+    btnDownloadLog.addEventListener('click', () => {
+        const textToSave = Array.from(termConsole.querySelectorAll('.term-line'))
+            .map(line => {
+                const ts = line.querySelector('.term-timestamp') ? line.querySelector('.term-timestamp').innerText : '';
+                const content = line.querySelector('span:not(.term-timestamp)') ? line.querySelector('span:not(.term-timestamp)').innerText : line.innerText;
+                return `${ts} ${content}`.trim();
+            })
+            .join('\n');
+            
+        const blob = new Blob([textToSave], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `serial_log_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        addLog("Session log exported successfully.", "sys");
+    });
+}
+
+if(baudRateSelect) {
+    baudRateSelect.addEventListener('change', () => {
+        const newRate = baudRateSelect.value;
+        addLog(`Reconnecting at ${newRate} baud...`, "sys");
+        // Simulate a small delay for reconnection
+        setTimeout(() => {
+            termConsole.innerHTML += '<div class="term-line sys-msg">--- Connection Re-established ---</div>';
+            addLog(`Device online at ${newRate}.`, "response");
+            startPing();
+            if(chkAutoscroll.checked) termConsole.scrollTop = termConsole.scrollHeight;
+        }, 800);
+    });
+}
+
+// Intelligent Autoscroll Detection
+let userScrolledUp = false;
+if (termConsole) {
+    termConsole.addEventListener('scroll', () => {
+        const threshold = 50; // px from bottom
+        const atBottom = termConsole.scrollHeight - termConsole.scrollTop - termConsole.clientHeight < threshold;
+        userScrolledUp = !atBottom;
+    });
+}
+
+// Initial setup
+startPing();
+
+
+
 
 // ==========================================
 // 7. SIMULATION FALLBACK
