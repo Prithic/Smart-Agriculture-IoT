@@ -63,7 +63,7 @@ To deploy this in a real-world scenario, you will need:
 3. The system will automatically start in **Simulation Mode** if no ESP32 is detected.
 
 ### 🛰️ Hardware Setup
-1. Flash your ESP32 with the provided firmware (coming soon/optional).
+1. Flash your ESP32 with the provided firmware in the `SmartAgriESP32/` directory.
 2. Ensure the ESP32 and your computer are on the same network.
 3. Update the `BASE_URL` in `script.js` to match your ESP32's IP address.
    ```javascript
@@ -78,6 +78,7 @@ To deploy this in a real-world scenario, you will need:
 - `style.css` - Premium UI styling and animations.
 - `script.js` - Core logic, API polling, and manual overrides.
 - `analytics.js` - Data engine, charting, and intelligent notifications.
+- `SmartAgriESP32/` - ESP32 firmware source code (`SmartAgriESP32.ino`).
 
 ---
 
