@@ -2,10 +2,27 @@
 #include <WebServer.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
+#include <Firebase_ESP_Client.h>
+ #include "secrets.h"
+
+// Provide the RTDB payload printing helper and sign-in helper
+#include <addons/TokenHelper.h>
+#include <addons/RTDBHelper.h>
+
 
 // ===== WIFI =====
-const char* ssid = "12345678";
-const char* password = "12345678";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
+
+// ===== FIREBASE =====
+// Note: DATABASE_URL and DATABASE_SECRET are defined in secrets.h
+
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+unsigned long sendDataPrevMillis = 0;
+bool signupOK = false;
+
 
 // ===== PINS =====
 #define DHTPIN 4
@@ -39,7 +56,76 @@ void addSystemLog(String msg) {
   Serial.println("SYSTEM: " + msg);
 }
 
+// ===== FIREBASE INIT =====
+void initFirebase() {
+  config.database_url = DATABASE_URL;
+  config.signer.tokens.legacy_token = DATABASE_SECRET;
+  Firebase.reconnectWiFi(true);
+  Firebase.begin(&config, &auth);
+  addSystemLog("Firebase Initializing...");
+}
+
+// ===== FIREBASE SYNC =====
+void syncFirebase() {
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > 2500 || sendDataPrevMillis == 0)) {
+    sendDataPrevMillis = millis();
+
+    bool success = true;
+    
+    // 1. Send Sensor Data
+    if (!Firebase.RTDB.setFloat(&fbdo, "/sensor/temperature", temperature)) success = false;
+    if (!Firebase.RTDB.setFloat(&fbdo, "/sensor/humidity", humidity)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, "/sensor/moisture", (int)moisture)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, "/sensor/tankLevel", tankLevel)) success = false;
+
+    if (success) {
+      Serial.println("FIREBASE: Data sent successfully");
+    } else {
+      Serial.print("FIREBASE: Data send failed: ");
+      Serial.println(fbdo.errorReason());
+    }
+
+    // 2. Read Control Data
+    // Mode
+    if (Firebase.RTDB.getString(&fbdo, "/control/mode")) {
+      if (fbdo.dataType() == "string") {
+        String m = fbdo.stringData();
+        if (m == "AUTO") {
+          if (!autoMode) {
+            autoMode = true;
+            addSystemLog("FIREBASE: Mode switched to AUTO");
+          }
+        } else if (m == "MANUAL") {
+          if (autoMode) {
+            autoMode = false;
+            addSystemLog("FIREBASE: Mode switched to MANUAL");
+          }
+        }
+      }
+    }
+
+    // Motors (Only if MANUAL)
+    if (!autoMode) {
+      if (Firebase.RTDB.getInt(&fbdo, "/control/waterMotor")) {
+        bool val = (fbdo.intData() == 1);
+        if (waterMotor != val) {
+          waterMotor = val;
+          addSystemLog("FIREBASE: Tank Motor " + String(waterMotor ? "ON" : "OFF"));
+        }
+      }
+      if (Firebase.RTDB.getInt(&fbdo, "/control/soilMotor")) {
+        bool val = (fbdo.intData() == 1);
+        if (soilMotor != val) {
+          soilMotor = val;
+          addSystemLog("FIREBASE: Soil Motor " + String(soilMotor ? "ON" : "OFF"));
+        }
+      }
+    }
+  }
+}
+
 // ===== SENSOR UPDATE =====
+
 void updateSensors() {
   float t = dht.readTemperature();
   float h = dht.readHumidity();
@@ -214,16 +300,18 @@ void setup() {
   server.on("/mode", handleMode);
   server.on("/serial", handleSerial);
   server.begin();
+  initFirebase();
 }
 
 void loop() {
   server.handleClient();
   checkSerial();
+  syncFirebase();
   if (pendingBaud > 0 && millis() > baudChangeTime) {
     Serial.end(); delay(100); Serial.begin(pendingBaud);
     pendingBaud = 0;
   }
+  updateSensors();
   if (autoMode) runAutomation();
   syncHardware();
-  delay(10);
 }

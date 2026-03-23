@@ -37,6 +37,84 @@ body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; d
 .brand-text span { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
 
 .header-actions { display: flex; align-items: center; gap: 1.5rem; }
+
+/* PREMIUM SERIAL BUTTON (GLASSMORPHISM) */
+.btn-serial {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 1.2rem;
+    background: rgba(243, 244, 246, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.btn-serial i {
+    font-size: 1.3rem;
+    transition: transform 0.3s;
+}
+
+.btn-serial:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: var(--primary-light);
+    color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.btn-serial:hover i {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.btn-serial.active {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+    animation: btnBreathe 3s ease-in-out infinite;
+}
+
+/* Notification Dot */
+.btn-notif {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 14px;
+    height: 14px;
+    background: var(--red-warn);
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 5;
+}
+
+.btn-notif.show {
+    opacity: 1;
+    transform: scale(1);
+    animation: notifPulse 2s infinite;
+}
+
+@keyframes btnBreathe {
+    0%, 100% { box-shadow: 0 0 10px rgba(34, 197, 94, 0.1); }
+    50% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.3); }
+}
+
+@keyframes notifPulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+    70% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
 .status-indicator { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-weight: 600; padding: 0.4rem 0.8rem; background: #f3f4f6; border-radius: 20px; }
 .pulse-dot { width: 10px; height: 10px; background: var(--red-warn); border-radius: 50%; box-shadow: 0 0 0 rgba(220, 38, 38, 0.4); }
 .pulse-dot.online { background: var(--green-ok); animation: pulseGreen 2s infinite; }
@@ -316,11 +394,17 @@ input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
     font-size: 0.85rem;
     line-height: 1.5;
     scroll-behavior: smooth;
+    transition: opacity 0.3s;
+}
+.terminal-console.clearing {
+    opacity: 0;
 }
 .term-line {
     margin-bottom: 2px;
     white-space: pre-wrap;
     word-break: break-all;
+    display: flex;
+    align-items: flex-start;
 }
 .term-line.sys-msg { color: #6a9955; font-style: italic; }
 .term-line.cmd { color: #569cd6; font-weight: bold; }
@@ -331,6 +415,10 @@ input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
     color: #858585;
     margin-right: 8px;
     font-size: 0.75rem;
+    display: none; /* Hidden by default */
+}
+.show-timestamps .term-timestamp {
+    display: inline-block;
 }
 
 /* Input Area */
@@ -375,7 +463,6 @@ input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
 .terminal-console::-webkit-scrollbar-track { background: #1e1e1e; }
 .terminal-console::-webkit-scrollbar-thumb { background: #37373d; border-radius: 0; }
 .terminal-console::-webkit-scrollbar-thumb:hover { background: #4f4f56; }
-
 
 /* --- F. ANALYTICS & REPORTS (CHART.JS) --- */
 .analytics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }

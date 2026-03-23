@@ -47,7 +47,7 @@ const maxDataPoints = 30; // approx 60 seconds (updates every 2s)
 const soilChart = new Chart(soilCtx, {
     type: 'line',
     data: { labels: [], datasets: [{ label: 'Soil Moisture (%)', data: [], borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)', borderWidth: 2, fill: true, tension: 0.4 }] },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } }, animation: { duration: 0 } }
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } }, animation: { duration: 0 }, elements: { point: { radius: 0 } } }
 });
 
 const weatherChart = new Chart(weatherCtx, {
@@ -59,13 +59,13 @@ const weatherChart = new Chart(weatherCtx, {
             { label: 'Humidity (%)', data: [], borderColor: '#0ea5e9', borderWidth: 2, tension: 0.4, yAxisID: 'y1' }
         ] 
     },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { type: 'linear', display: true, position: 'left' }, y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } } }, animation: { duration: 0 } }
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { type: 'linear', display: true, position: 'left' }, y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } } }, animation: { duration: 0 }, elements: { point: { radius: 0 } } }
 });
 
 const waterChart = new Chart(waterCtx, {
     type: 'bar',
     data: { labels: ['Today'], datasets: [{ label: 'Water Used (Liters)', data: [0], backgroundColor: '#0ea5e9', borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } }, animation: { duration: 0 } }
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } }, animation: { duration: 0 }, elements: { point: { radius: 0 } } }
 });
 
 // --- ANALYTICS DATA ENGINE ---
@@ -119,7 +119,7 @@ window.processAnalytics = function(data) {
             soilChart.data.datasets[0].data.shift();
         }
         soilChart.data.labels.push(timeLabel);
-        soilChart.data.datasets[0].data.push(data.soilMoisture);
+        soilChart.data.datasets[0].data.push(data.moisture);
         soilChart.update();
 
         // Arrays maintenance (Weather)
@@ -137,14 +137,14 @@ window.processAnalytics = function(data) {
         let anyMotorOn = 0;
 
         // Irrigation Motor Logic
-        let currentIrrMotor = Number(data.irrigationMotor) === 1 ? 1 : 0;
+        let currentIrrMotor = Number(data.soilMotor) === 1 ? 1 : 0;
         if(currentIrrMotor === 1) {
             anyMotorOn = 1;
             totalWaterLiters += (FLOW_RATE_LPS * SECONDS_PER_TICK);
             
             if(lastMotorState === 0) {
                 irrigationCount++;
-                startingMoistureBeforeIrrigation = Number(data.soilMoisture) || 0;
+                startingMoistureBeforeIrrigation = Number(data.moisture) || 0;
                 irrTicksSession = 0;
             }
             irrTicksSession++;
@@ -152,15 +152,16 @@ window.processAnalytics = function(data) {
             motorConsecutiveOnTicks++;
             
             // Alert: Dry Run Detection
-            if (previousTankLevel !== null && previousTankLevel === data.tankLevel && motorConsecutiveOnTicks > 3) {
+            if (previousTankLevel !== null && previousTankLevel === data.tankStatus && motorConsecutiveOnTicks > 3) {
                 if (typeof triggerAlert === 'function') {
                     triggerAlert("warn", "Dry Run Detected", "Motor is actively running but water tank level is unchanged.");
                 }
             }
         } else {
             if (lastMotorState === 1 && startingMoistureBeforeIrrigation !== null) {
-                let gained = (Number(data.soilMoisture) || 0) - startingMoistureBeforeIrrigation;
-                document.getElementById('insightEfficiency').innerText = `+${gained.toFixed(1)}% per cycle`;
+                let gained = (Number(data.moisture) || 0) - startingMoistureBeforeIrrigation;
+                const efficiencyEl = document.getElementById('insightEfficiency');
+                if (efficiencyEl) efficiencyEl.innerText = `+${gained.toFixed(1)}% per cycle`;
                 startingMoistureBeforeIrrigation = null;
             }
             motorConsecutiveOnTicks = 0;
@@ -168,7 +169,7 @@ window.processAnalytics = function(data) {
         lastMotorState = currentIrrMotor;
 
         // Tank Motor Logic
-        let currentTankMotor = Number(data.tankMotor) === 1 ? 1 : 0;
+        let currentTankMotor = Number(data.waterMotor) === 1 ? 1 : 0;
         if(currentTankMotor === 1) {
             anyMotorOn = 1;
             if(lastTankMotorState === 0) tankTicksSession = 0;
@@ -186,33 +187,37 @@ window.processAnalytics = function(data) {
 
         // Averages Tracking
         sumTemp += parseFloat(data.temperature);
-        sumMoist += parseFloat(data.soilMoisture);
+        sumMoist += parseFloat(data.moisture);
         readingsCount++;
         const avgTemp = (sumTemp / readingsCount).toFixed(1);
         const avgMoist = (sumMoist / readingsCount).toFixed(1);
 
         // Smart Insights Calculations
-        if (previousMoisture !== null) {
-            let drop = previousMoisture - data.soilMoisture;
-            if (drop > 0) document.getElementById('insightDrying').innerText = `-${drop.toFixed(1)}% / 2s`;
-            else if (drop === 0) document.getElementById('insightDrying').innerText = `Stable`;
+        const dryingEl = document.getElementById('insightDrying');
+        if (previousMoisture !== null && dryingEl) {
+            let drop = previousMoisture - data.moisture;
+            if (drop > 0) dryingEl.innerText = `-${drop.toFixed(1)}% / 2s`;
+            else if (drop === 0) dryingEl.innerText = `Stable`;
         }
-        previousMoisture = data.soilMoisture;
+        previousMoisture = data.moisture;
 
-        let envMsg = "Nominal conditions.";
-        if (data.temperature > 32 && data.humidity < 40) envMsg = "High evapotranspiration. Needs more water.";
-        else if (data.temperature < 20 && data.humidity > 70) envMsg = "Low evaporation. Reduce watering.";
-        document.getElementById('insightEnv').innerText = envMsg;
+        const envEl = document.getElementById('insightEnv');
+        if (envEl) {
+            let envMsg = "Nominal conditions.";
+            if (data.temperature > 32 && data.humidity < 40) envMsg = "High evapotranspiration. Needs more water.";
+            else if (data.temperature < 20 && data.humidity > 70) envMsg = "Low evaporation. Reduce watering.";
+            envEl.innerText = envMsg;
+        }
 
         // Weekly summary bounds
         if (data.temperature > highestTemp) highestTemp = data.temperature;
-        if (data.soilMoisture < lowestMoist) lowestMoist = data.soilMoisture;
+        if (data.moisture < lowestMoist) lowestMoist = data.moisture;
         
         // Alerts Triggering
         if (typeof triggerAlert === 'function') {
             if (motorConsecutiveOnTicks > 15) triggerAlert("warn", "Extended Irrigation Warning", "Motor has been running continuously for suspiciously long.");
             if (data.temperature > 40) triggerAlert("warn", "Critical Heat Anomaly", `Temperature exceeded 40°C (Current: ${data.temperature}°C)`);
-            if (data.soilMoisture < 20) {
+            if (data.moisture < 20) {
                 drySoilConsecutiveTicks++;
                 if (drySoilConsecutiveTicks > 10) triggerAlert("warn", "Severe Soil Desiccation", "Soil moisture critically low for an extended period.");
             } else {
@@ -229,8 +234,12 @@ window.processAnalytics = function(data) {
         document.getElementById('trkEnergyToday').innerText = `${energyToday.toFixed(3)} kWh`;
         document.getElementById('trkEnergySession').innerText = `${energySession.toFixed(3)} kWh`;
         document.getElementById('trkCostToday').innerText = `₹ ${costToday.toFixed(2)}`;
-        document.getElementById('trkPowerDraw').innerText = anyMotorOn ? `${POWER_KW} kW` : "0 kW";
-        document.getElementById('trkPowerDraw').className = anyMotorOn ? 'clr-red' : 'clr-green';
+        
+        const powerDrawEl = document.getElementById('trkPowerDraw');
+        if (powerDrawEl) {
+            powerDrawEl.innerText = anyMotorOn ? `${POWER_KW} kW` : "0 kW";
+            powerDrawEl.className = anyMotorOn ? 'clr-red' : 'clr-green';
+        }
 
         // Update Reports DOM
         document.getElementById('repWater').innerText = `${totalWaterLiters.toFixed(2)} L`;
@@ -245,7 +254,7 @@ window.processAnalytics = function(data) {
         document.getElementById('repHighTemp').innerText = `${highestTemp.toFixed(1)} °C`;
         document.getElementById('repLowMoist').innerText = `${lowestMoist.toFixed(1)} %`;
         
-        // Weekly Estimates (Naive * 7)
+        // Weekly Estimates
         let weekEnergy = energyToday * 7;
         document.getElementById('repWeekWater').innerText = (totalWaterLiters * 7).toFixed(1);
         document.getElementById('repWeekEnergy').innerText = `${weekEnergy.toFixed(2)} kWh`;
@@ -279,7 +288,7 @@ window.processAnalytics = function(data) {
                 led.innerHTML = "<i class='bx bx-check'></i>";
                 txt.innerText = "Optimal Health";
                 desc.innerText = "Soil moisture and thermal metrics are squarely in the optimal zone.";
-            } else if (avgMoist < 30 || avgMoist > 90 || avgTemp > 35) {
+            } else if (avgMoist < 25 || avgMoist > 90 || avgTemp > 38) {
                 led.classList.add('critical');
                 led.innerHTML = "<i class='bx bx-x'></i>";
                 txt.innerText = "Critical Condition";
@@ -291,7 +300,7 @@ window.processAnalytics = function(data) {
             }
         }
         
-        previousTankLevel = data.tankLevel;
+        previousTankLevel = data.tankStatus;
     } catch (err) {
         console.error("CRITICAL ANALYTICS CRASH:", err);
         if (typeof triggerAlert === 'function') {

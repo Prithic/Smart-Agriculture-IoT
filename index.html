@@ -36,7 +36,10 @@
                 </div>
             </div>
             <div class="header-actions">
-                <button class="btn-serial" id="btnOpenSerial"><i class='bx bx-terminal'></i> Serial Monitor</button>
+                <button class="btn-serial" id="btnOpenSerial">
+                    <i class='bx bx-terminal'></i> Serial Monitor
+                    <span class="btn-notif" id="serialNotif"></span>
+                </button>
                 <div class="status-indicator">
                     <div class="pulse-dot" id="connDot"></div>
                     <span id="headerStatusMsg">Offline</span>
@@ -66,7 +69,7 @@
                             <div class="box-icon bg-orange"><i class='bx bxs-thermometer'></i></div>
                             <div class="box-info">
                                 <span class="box-label">Field Temp</span>
-                                <div class="box-value"><span id="tempValue">--</span><small>°C</small></div>
+                                <div class="box-value"><span id="temperature">--</span><small>°C</small></div>
                             </div>
                         </div>
 
@@ -74,7 +77,7 @@
                         <div class="box-icon bg-blue"><i class='bx bx-water'></i></div>
                         <div class="box-info">
                             <span class="box-label">Humidity</span>
-                            <div class="box-value"><span id="humValue">--</span><small>%</small></div>
+                            <div class="box-value"><span id="humidity">--</span><small>%</small></div>
                         </div>
                     </div>
 
@@ -82,7 +85,7 @@
                         <div class="box-icon bg-green"><i class='bx bx-leaf'></i></div>
                         <div class="box-info">
                             <span class="box-label">Soil Moisture</span>
-                            <div class="box-value"><span id="soilValue">--</span><small>%</small></div>
+                            <div class="box-value"><span id="moisture">--</span><small>%</small></div>
                         </div>
                     </div>
 
@@ -90,7 +93,7 @@
                         <div class="box-icon bg-cyan"><i class='bx bx-droplet'></i></div>
                         <div class="box-info">
                             <span class="box-label">Tank Level</span>
-                            <div class="box-value"><span id="tankValue">--</span><small>%</small></div>
+                            <div class="box-value"><span id="tankStatus">--</span><small>%</small></div>
                         </div>
                     </div>
 
