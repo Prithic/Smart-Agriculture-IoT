@@ -87,7 +87,7 @@ To deploy this in a real-world scenario, you will need:
 - [ ] Multi-Field Support (Manage multiple zones from one dashboard).
 - [ ] Mobile App Integration (Flutter/React Native).
 - [ ] AI Prediction (Yield estimation based on historical data).
-- [ ] Cloud Data Logging (Firebase/AWS IoT integration).
+- [x] Cloud Data Logging (Firebase Realtime Database integrated for live remote monitoring).
 
 ---
 Developed for the **Smart Agriculture IoT** initiative. 🌿

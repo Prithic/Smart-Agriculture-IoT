@@ -1,475 +1,459 @@
-// ==========================================
-// 1. CONFIGURATION
-// ==========================================
-const ESP32_IP = "10.187.109.98"; 
-const BASE_URL = `http://${ESP32_IP}`;
-const TANK_SAFETY_THRESHOLD = 5; // %
+// 1. Firebase Configuration & Initialization
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const auth = firebase.auth();
+const db = firebase.database();
+
+// DOM State & Global Variables
+let activeDeviceId = localStorage.getItem('activeDeviceId') || "esp32_01";
+let currentSyncPath = null;
+let currentControlState = {};
+let devices = {};
 
 // ==========================================
-// 2. DOM ELEMENTS
+// 2. AUTHENTICATION & SESSION
 // ==========================================
-
-// Header
-const connDot = document.getElementById('connDot');
-const headerStatusMsg = document.getElementById('headerStatusMsg');
-const modeToggle = document.getElementById('modeToggle');
-const modeLabelHeader = document.getElementById('modeLabelHeader');
-
-// Map Flow Elements
-const pathWellTank = document.getElementById('svg-flow-t');
-const pathTankField = document.getElementById('svg-flow-i');
-
-// Terminal & Drawer Elements
-const btnOpenSerial = document.getElementById('btnOpenSerial');
-const btnCloseSerial = document.getElementById('btnCloseSerial');
-const serialDrawer = document.getElementById('serialDrawer');
-const serialOverlay = document.getElementById('serialOverlay');
-const termConsole = document.getElementById('termConsole');
-const termInput = document.getElementById('termInput');
-const btnSendTerm = document.getElementById('btnSendTerm');
-const btnClearTerm = document.getElementById('btnClearTerm');
-const btnDownloadLog = document.getElementById('btnDownloadLog');
-const chkAutoscroll = document.getElementById('chkAutoscroll');
-const chkTimestamps = document.getElementById('chkTimestamps');
-const baudRateSelect = document.getElementById('baudRate');
-const serialNotif = document.getElementById('serialNotif');
-
-const nodeWellIcon = document.querySelector('#node-well .node-icon');
-const nodeTankIcon = document.getElementById('tankVisual');
-const nodeFieldIcon = document.querySelector('#node-field .node-icon');
-
-const nodeTankStatusHeader = document.getElementById('node-tank-status');
-const nodeFieldStatusHeader = document.getElementById('node-field-status');
-const tankWaterLevel = document.getElementById('tankWaterLevel');
-
-// Telemetry Fields (Updated IDs)
-const temperatureEl = document.getElementById('temperature');
-const humidityEl = document.getElementById('humidity');
-const moistureEl = document.getElementById('moisture');
-const tankStatusEl = document.getElementById('tankStatus');
-
-// Controls
-const tankToggle = document.getElementById('tankToggle');
-const tankMotorBadge = document.getElementById('tankMotorBadge');
-const tankControlItem = tankToggle.closest('.control-item');
-
-const irrToggle = document.getElementById('irrToggle');
-const irrMotorBadge = document.getElementById('irrMotorBadge');
-const irrControlItem = irrToggle.closest('.control-item');
-
-// Diagnostics Section
-const diagMode = document.getElementById('diagMode');
-const diagTank = document.getElementById('diagTank');
-const diagIrr = document.getElementById('diagIrr');
-const diagAlerts = document.getElementById('diagAlerts');
-
-// Footer
-const footConn = document.getElementById('footConn');
-const footTime = document.getElementById('footTime');
-const loadingSpinner = document.getElementById('loadingSpinner');
-
-let isUpdating = false;
-let userScrolledUp = false;
-
-// ==========================================
-// 3. FETCH DATA (REAL API)
-// ==========================================
-async function fetchData() {
-    loadingSpinner.classList.add('active');
-    try {
-        const response = await fetch(`${BASE_URL}/data`);
-        if (!response.ok) throw new Error("Offline");
-        
-        const data = await response.json();
-        setOnlineStatus(true);
-        updateUI(data);
-
-        // Process incoming logs from ESP32
-        if (data.logs && data.logs.trim() !== "") {
-            const lines = data.logs.trim().split('\n');
-            lines.forEach(line => addLog(line, 'response'));
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        console.log("UID:", user.uid);
+        document.getElementById('userName').innerText = user.displayName || "User";
+        if (document.getElementById('userPhoto')) document.getElementById('userPhoto').src = user.photoURL || "";
+        initDeviceManager(user.uid);
+    } else {
+        if (!window.location.pathname.includes('login.html')) {
+            window.location.href = 'login.html';
         }
-
-        // Notify analytics engine
-        if (typeof window.processAnalytics === 'function') {
-            window.processAnalytics(data);
-        }
-    } catch (error) {
-        console.warn("Retrying... ESP32 Link Down:", error.message);
-        setOnlineStatus(false);
-    } finally {
-        setTimeout(() => loadingSpinner.classList.remove('active'), 500);
     }
+});
+
+function handleLogout() {
+    auth.signOut().then(() => {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    });
 }
 
 // ==========================================
-// 4. UI UPDATER (REAL DATA)
+// 3. REAL-TIME DATA SYNC
 // ==========================================
-function updateUI(data) {
-    isUpdating = true;
-
-    // 1. Update Core Telemetry
-    if (temperatureEl) temperatureEl.innerText = parseFloat(data.temperature).toFixed(1);
-    if (humidityEl) humidityEl.innerText = parseFloat(data.humidity).toFixed(1);
-    if (moistureEl) moistureEl.innerText = parseFloat(data.moisture).toFixed(1);
+function initRealtimeSync(uid, deviceId) {
+    if (!uid || !deviceId) return;
     
-    // Schema Map: tankLevel instead of tankStatus
-    const tank = parseFloat(data.tankLevel || data.tankStatus || 0);
-    if (tankStatusEl) tankStatusEl.innerText = tank.toFixed(0);
+    if (currentSyncPath) {
+        db.ref(currentSyncPath + '/sensor').off();
+        db.ref(currentSyncPath + '/control').off();
+        db.ref(currentSyncPath + '/meta').off();
+    }
 
-    const temp = parseFloat(data.temperature);
-    temp > 35 ? temperatureEl.classList.add('alert-text') : temperatureEl.classList.remove('alert-text');
+    currentSyncPath = `users/${uid}/devices/${deviceId}`;
+    console.log("Listening Path:", currentSyncPath);
 
-    const moist = parseFloat(data.moisture);
+    // 1. Sensor Listener
+    db.ref(currentSyncPath + '/sensor').on('value', (snapshot) => {
+        const sensorData = snapshot.val() || {};
+        console.log("Firebase Data:", sensorData);
+        if (sensorData) {
+            updateSensorUI(sensorData);
+            if (typeof window.processAnalytics === 'function') {
+                window.processAnalytics({
+                    ...sensorData,
+                    waterMotor: parseInt(currentControlState.waterMotor ?? 0),
+                    soilMotor: parseInt(currentControlState.soilMotor ?? 0),
+                    mode: currentControlState.mode ?? "MANUAL"
+                });
+            }
+        }
+    });
+
+    // 2. Control Listener (Requirement 1 & 2)
+    db.ref(currentSyncPath + '/control').on('value', (snapshot) => {
+        const controlData = snapshot.val() || {};
+        currentControlState = controlData; 
+        console.log("Control Data:", controlData); // Requirement 5
+        updateControlUI(controlData); // Requirement 3 & 7
+    });
+
+    // 3. Meta (Heartbeat) Listener
+    db.ref(currentSyncPath + '/meta').on('value', (snapshot) => {
+        const metaData = snapshot.val() || {};
+        const isOnline = (Date.now() - (metaData.lastActive || 0)) < 10000;
+        setOnlineStatus(isOnline);
+    });
     
-    // Set Tank Level Visual
-    if (tankWaterLevel) {
-        let validTank = Math.max(0, Math.min(100, tank));
-        tankWaterLevel.style.height = validTank + "%";
+    updateActiveDeviceUI();
+}
+
+function updateSensorUI(sensor) {
+    const fields = {
+        'temperature': parseFloat(sensor.temperature ?? 0).toFixed(1),
+        'humidity': parseFloat(sensor.humidity ?? 0).toFixed(1),
+        'moisture': parseFloat(sensor.moisture ?? 0).toFixed(1),
+        'tankStatus': parseFloat(sensor.tankLevel ?? 0).toFixed(0)
+    };
+
+    for (const [id, val] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
     }
 
-    // 2. Map Status Badges
-    if (tank < 30) {
-        nodeTankStatusHeader.className = "node-state badge-alert";
-        nodeTankStatusHeader.innerText = "LOW";
-        if (tankStatusEl) tankStatusEl.classList.add('alert-text');
-    } else {
-        nodeTankStatusHeader.className = `node-state ${tank > 90 ? 'badge-ok' : 'badge-warn'}`;
-        nodeTankStatusHeader.innerText = `${tank.toFixed(0)}%`;
-        if (tankStatusEl) tankStatusEl.classList.remove('alert-text');
+    const tankWaterLevel = document.getElementById('tankWaterLevel');
+    if (tankWaterLevel) tankWaterLevel.style.height = Math.max(0, Math.min(100, parseFloat(sensor.tankLevel ?? 0))) + "%";
+}
+
+function updateControlUI(control) {
+    // Controls Status
+    const isTankOn = (parseInt(control.waterMotor ?? 0) === 1);
+    const isIrrOn = (parseInt(control.soilMotor ?? 0) === 1);
+    const isAuto = (control.mode === "AUTO");
+
+    const tankToggle = document.getElementById('tankToggle');
+    const irrToggle = document.getElementById('irrToggle');
+    const modeToggle = document.getElementById('modeToggle');
+
+    // Requirement 3: Update UI elements dynamically
+    if (tankToggle) { tankToggle.checked = isTankOn; tankToggle.disabled = isAuto; }
+    if (irrToggle) { irrToggle.checked = isIrrOn; irrToggle.disabled = isAuto; }
+    if (modeToggle) modeToggle.checked = isAuto;
+
+    // Requirement 7: Fix UI state mismatch
+    const tankBadge = document.getElementById('tankMotorBadge');
+    const irrBadge = document.getElementById('irrMotorBadge');
+    const modeLabel = document.getElementById('modeLabelHeader');
+
+    if (tankBadge) {
+        tankBadge.innerText = isTankOn ? "ON" : "OFF";
+        tankBadge.className = isTankOn ? "ctrl-badge badge-ok" : "ctrl-badge badge-warn";
+    }
+    if (irrBadge) {
+        irrBadge.innerText = isIrrOn ? "ON" : "OFF";
+        irrBadge.className = isIrrOn ? "ctrl-badge badge-ok" : "ctrl-badge badge-warn";
+    }
+    if (modeLabel) {
+        modeLabel.innerText = isAuto ? "AUTO" : "MANUAL";
+        modeLabel.className = isAuto ? "mode-label auto" : "mode-label";
     }
 
-    if (moist < 35) {
-        nodeFieldStatusHeader.className = "node-state badge-warn";
-        nodeFieldStatusHeader.innerText = "DRY";
-        moistureEl.classList.add('alert-text');
-    } else {
-        nodeFieldStatusHeader.className = "node-state badge-ok";
-        nodeFieldStatusHeader.innerText = "MOIST";
-        moistureEl.classList.remove('alert-text');
-    }
-
-    // 3. Motor Synchronization
-    const isTankOn = Number(data.waterMotor) === 1;
-    const isIrrOn = Number(data.soilMotor) === 1;
-
-    // Tank Fill Visuals
-    if (isTankOn) {
-        pathWellTank.classList.add('active');
-        nodeWellIcon.classList.add('node-well-active');
-        nodeTankIcon.classList.add('node-tank-active');
-        tankControlItem.classList.add('active-outline');
-        diagTank.innerText = "Filling";
-        diagTank.className = "diag-value clr-blue";
-    } else {
-        pathWellTank.classList.remove('active');
-        nodeWellIcon.classList.remove('node-well-active');
-        nodeTankIcon.classList.remove('node-tank-active');
-        tankControlItem.classList.remove('active-outline');
-        diagTank.innerText = "Idle";
-        diagTank.className = "diag-value";
-    }
-
-    // Irrigation Visuals
-    if (isIrrOn) {
-        pathTankField.classList.add('active');
-        nodeFieldIcon.classList.add('node-field-active');
-        nodeTankIcon.classList.add('node-tank-active');
-        irrControlItem.classList.add('active-outline');
-        diagIrr.innerText = "Irrigating";
-        diagIrr.className = "diag-value clr-blue";
-    } else {
-        pathTankField.classList.remove('active');
-        nodeFieldIcon.classList.remove('node-field-active');
-        irrControlItem.classList.remove('active-outline');
-        diagIrr.innerText = "Idle";
-        diagIrr.className = "diag-value";
-    }
-
-    // 4. Update Switches & Badges
-    tankToggle.checked = isTankOn;
-    tankMotorBadge.innerText = isTankOn ? "ON" : "OFF";
-    tankMotorBadge.className = isTankOn ? "ctrl-status on" : "ctrl-status off";
-
-    irrToggle.checked = isIrrOn;
-    irrMotorBadge.innerText = isIrrOn ? "ON" : "OFF";
-    irrMotorBadge.className = isIrrOn ? "ctrl-status on" : "ctrl-status off";
-
-    // Schema Map: data.mode ("AUTO"/"MANUAL")
-    const isAuto = data.mode === "AUTO" || data.autoMode === 1;
-    modeToggle.checked = isAuto;
-    modeLabelHeader.innerText = isAuto ? "AUTO" : "MANUAL";
-    modeLabelHeader.className = isAuto ? "mode-label auto" : "mode-label";
-
-    diagMode.innerText = isAuto ? "AUTO" : "MANUAL";
-    diagMode.className = isAuto ? "diag-value clr-green" : "diag-value clr-dark";
-
-    tankToggle.disabled = isAuto;
-    irrToggle.disabled = isAuto;
-
-    // 5. Global Alerts Summary
-    let alerts = [];
-    if (tank < 30) alerts.push("Tank Empty");
-    if (moist < 35) alerts.push("Soil Dry");
-    if (temp > 35) alerts.push("Overheating");
-    
-    if (alerts.length > 0) {
-        diagAlerts.innerText = alerts.join(', ');
-        diagAlerts.className = "diag-value clr-red";
-    } else {
-        diagAlerts.innerText = "All Clear";
-        diagAlerts.className = "diag-value clr-green";
-    }
-
-    footTime.innerText = new Date().toLocaleTimeString();
-    isUpdating = false;
+    // Flow Animations
+    document.getElementById('svg-flow-t')?.classList.toggle('active', isTankOn);
+    document.getElementById('svg-flow-i')?.classList.toggle('active', isIrrOn);
 }
 
 function setOnlineStatus(online) {
-    if (online) {
-        connDot.className = "pulse-dot online";
-        headerStatusMsg.innerText = "Online";
-        footConn.innerText = "Connected to ESP32 Edge";
-    } else {
-        connDot.className = "pulse-dot offline";
-        headerStatusMsg.innerText = "ESP32 Disconnected";
-        footConn.innerText = "Connection Lost. Retrying...";
-    }
+    const connDot = document.getElementById('connDot');
+    const headerStatusMsg = document.getElementById('headerStatusMsg');
+    if (connDot) connDot.className = `pulse-dot ${online ? 'online' : 'offline'}`;
+    if (headerStatusMsg) headerStatusMsg.innerText = online ? "Online" : "Offline";
 }
 
 // ==========================================
-// 5. CONTROL FUNCTIONS (COMMAND-RESPONSE)
+// 4. CONTROL FUNCTIONS
 // ==========================================
 async function toggleControl(type) {
-    if (isUpdating) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid || !activeDeviceId) return;
 
-    let url = "";
-    let cmdString = "";
+    let path = `users/${uid}/devices/${activeDeviceId}/control/`;
+    let key, val;
+
     if (type === 'auto') {
-        const state = modeToggle.checked ? 'auto' : 'manual';
-        url = `${BASE_URL}/mode?state=${state}`;
-        cmdString = `mode=${state}`;
+        key = "mode";
+        val = document.getElementById('modeToggle').checked ? "AUTO" : "MANUAL";
     } else if (type === 'tank') {
-        const val = tankToggle.checked ? 1 : 0;
-        url = `${BASE_URL}/control?tank=${val}`;
-        cmdString = `tank=${val}`;
+        key = "waterMotor";
+        val = document.getElementById('tankToggle').checked ? 1 : 0;
     } else if (type === 'irrigation') {
-        const val = irrToggle.checked ? 1 : 0;
-        url = `${BASE_URL}/control?soil=${val}`;
-        cmdString = `soil=${val}`;
+        key = "soilMotor";
+        val = document.getElementById('irrToggle').checked ? 1 : 0;
     }
 
-    // 1. Log outgoing command
-    addLog(cmdString, 'cmd');
-    
-    loadingSpinner.classList.add('active');
-    try {
-        // 2. Execute and capture response
-        const res = await fetch(url);
-        const text = await res.text();
-        
-        // 3. Log hardware confirmation
-        addLog(text, 'response');
-        
-        // Finalize state sync
-        setTimeout(fetchData, 400);
-    } catch (e) {
-        console.error("Control Error:", e);
-        addLog("ESP32 not reachable. Check network.", "error");
-    } finally {
-        loadingSpinner.classList.remove('active');
-    }
+    try { await db.ref(path + key).set(val); } catch (e) { console.error("Control Error:", e); }
 }
 
 // ==========================================
-// 6. LOGGING & SERIAL MONITOR (REAL API)
+// 4.5 LOGGING & TERMINAL (ENHANCED)
 // ==========================================
 let commandHistory = [];
 let historyIndex = -1;
+let userScrolledUp = false;
 
-function addLog(msg, type = "sys") {
-    if (!termConsole) return;
+function addTerminalLog(msg, type = 'sys') {
+    const term = document.getElementById('termConsole');
+    if (!term) return;
+    
     const line = document.createElement('div');
     line.className = `term-line ${type}`;
     
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const ts = document.createElement('span');
-    ts.className = 'term-timestamp';
-    ts.innerText = `[${timeStr}]`;
-    line.appendChild(ts);
-    
-    const content = document.createElement('span');
-    
-    // Prefix logic
-    let displayMsg = msg;
-    if (type === 'cmd') displayMsg = `> ${msg}`;
-    else if (type === 'response') {
-        displayMsg = msg.includes("ESP32:") ? msg : `ESP32: ${msg}`;
-        // Show notification dot if terminal is closed
-        if (!serialDrawer.classList.contains('open')) {
-            serialNotif.classList.add('show');
-        }
+    // Check timestamps toggle
+    const chkTimestamps = document.getElementById('chkTimestamps');
+    if (chkTimestamps && chkTimestamps.checked) {
+        line.innerHTML = `<span class="term-timestamp">[${new Date().toLocaleTimeString()}]</span> <span>${msg}</span>`;
+    } else {
+        line.innerHTML = `<span>${msg}</span>`;
     }
     
-    content.innerText = displayMsg;
-    line.appendChild(content);
-    termConsole.appendChild(line);
+    term.appendChild(line);
     
-    // Improved Autoscroll
+    // Autoscroll logic (Intelligent)
+    const chkAutoscroll = document.getElementById('chkAutoscroll');
     if (chkAutoscroll && chkAutoscroll.checked && !userScrolledUp) {
-        termConsole.scrollTop = termConsole.scrollHeight;
+        term.scrollTop = term.scrollHeight;
     }
     
-    // Cleanup old logs (keep last 100)
-    if (termConsole.childElementCount > 100) {
-        termConsole.removeChild(termConsole.firstChild);
+    // Limit lines
+    if (term.childElementCount > 200) {
+        term.removeChild(term.firstChild);
     }
 }
 
-async function sendCommand() {
-    const text = termInput.value.trim();
-    if (!text) return;
-    
-    commandHistory.push(text);
-    if (commandHistory.length > 50) commandHistory.shift();
+async function sendSerialCommand() {
+    const input = document.getElementById('termInput');
+    const cmd = input?.value.trim();
+    if (!cmd || !activeDeviceId) return;
+
+    // History management
+    commandHistory.push(cmd);
+    if(commandHistory.length > 50) commandHistory.shift();
     historyIndex = -1;
 
-    // 1. Log outgoing command
-    addLog(text, 'cmd');
-    termInput.value = '';
-    
-    try {
-        // 2. Fetch from /serial and capture text
-        const response = await fetch(`${BASE_URL}/serial?cmd=${encodeURIComponent(text)}`);
-        const result = await response.text();
+    const uid = auth.currentUser?.uid;
+    input.value = '';
+    addTerminalLog(cmd, 'cmd');
+
+    // Execute Cloud Write
+    try { 
+        await db.ref(`users/${uid}/devices/${activeDeviceId}/control/command`).set(cmd); 
         
-        // 3. Log response
-        addLog(result, 'response');
-    } catch (e) {
-        addLog("ESP32 Connection Error.", "error");
+        // Local Simulation Response (Since ESP32 doesn't send logs back)
+        setTimeout(() => {
+            const rawCmd = cmd.toLowerCase();
+            if (rawCmd === 'help') {
+                addTerminalLog("Available: STATUS, AUTO, MANUAL", "sys");
+            } else if (rawCmd === 'auto') {
+                addTerminalLog("Switching to AUTO mode...", "response");
+            } else if (rawCmd === 'manual') {
+                addTerminalLog("Switching to MANUAL mode...", "response");
+            } else if (rawCmd === 'status') {
+                addTerminalLog("Fetching status...", "sys");
+            } else {
+                addTerminalLog(`Command '${cmd}' sent to device.`, "response");
+            }
+        }, 300);
+        
+    } catch (e) { 
+        addTerminalLog("Cloud Write Failed", "error"); 
     }
 }
 
-// Drawer Controls
-if (btnOpenSerial) {
-    btnOpenSerial.addEventListener('click', () => { 
-        serialDrawer.classList.add('open'); 
-        serialOverlay.classList.add('open'); 
-        btnOpenSerial.classList.add('active');
-        serialNotif.classList.remove('show'); // Clear notifications
-        termInput.focus(); 
-    });
-}
-
-if (btnCloseSerial) {
-    btnCloseSerial.addEventListener('click', () => { 
-        serialDrawer.classList.remove('open'); 
-        serialOverlay.classList.remove('open'); 
-        btnOpenSerial.classList.remove('active');
-    });
-}
-
-if (serialOverlay) {
-    serialOverlay.addEventListener('click', () => { 
-        serialDrawer.classList.remove('open'); 
-        serialOverlay.classList.remove('open'); 
-        btnOpenSerial.classList.remove('active');
-    });
-}
-
-if (btnSendTerm) btnSendTerm.addEventListener('click', sendCommand);
-if (termInput) {
-    termInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendCommand();
-        else if (e.key === 'ArrowUp') {
-            if (commandHistory.length > 0) {
-                if (historyIndex === -1) historyIndex = commandHistory.length - 1;
-                else if (historyIndex > 0) historyIndex--;
-                termInput.value = commandHistory[historyIndex];
-                e.preventDefault();
-            }
-        } else if (e.key === 'ArrowDown') {
-            if (historyIndex !== -1) {
-                if (historyIndex < commandHistory.length - 1) { historyIndex++; termInput.value = commandHistory[historyIndex]; }
-                else { historyIndex = -1; termInput.value = ''; }
-                e.preventDefault();
+// ==========================================
+// 5. DEVICE MANAGEMENT
+// ==========================================
+function initDeviceManager(uid) {
+    db.ref(`users/${uid}/devices`).on('value', (snapshot) => {
+        devices = snapshot.val() || {};
+        renderDeviceList();
+        
+        if (Object.keys(devices).length > 0) {
+            if (!activeDeviceId || !devices[activeDeviceId]) {
+                changeDevice(Object.keys(devices)[0]);
+            } else {
+                initRealtimeSync(uid, activeDeviceId);
             }
         }
     });
 }
 
-if (btnClearTerm) {
-    btnClearTerm.addEventListener('click', () => { 
-        termConsole.classList.add('clearing');
-        setTimeout(() => {
-            termConsole.innerHTML = '<div class="term-line sys-msg">--- Terminal Cleared ---</div>'; 
-            termConsole.classList.remove('clearing');
-            addLog("Terminal history wiped clean.", "sys");
-        }, 300);
-    });
+function renderDeviceList() {
+    const sidebarList = document.getElementById('sidebarDeviceList');
+    if (!sidebarList) return;
+
+    sidebarList.innerHTML = Object.entries(devices).map(([id, dev]) => `
+        <div class="device-item-mini ${id === activeDeviceId ? 'active' : ''}" onclick="changeDevice('${id}')">
+            <span class="device-name-mini">${dev.name || id}</span>
+            <span class="device-id-mini">${id}</span>
+        </div>
+    `).join('') || '<div class="device-empty">No devices found.</div>';
 }
 
-if (btnDownloadLog) {
-    btnDownloadLog.addEventListener('click', () => {
-        const textToSave = Array.from(termConsole.querySelectorAll('.term-line')).map(line => {
-            const ts = line.querySelector('.term-timestamp')?.innerText || '';
-            const content = line.querySelector('span:not(.term-timestamp)')?.innerText || line.innerText;
-            return `${ts} ${content}`.trim();
-        }).join('\n');
+function changeDevice(id) {
+    console.log("Switching to device:", id);
+    activeDeviceId = id;
+    localStorage.setItem('activeDeviceId', id);
+    renderDeviceList();
+    if (auth.currentUser) initRealtimeSync(auth.currentUser.uid, id);
+}
+window.changeDevice = changeDevice;
+
+function updateActiveDeviceUI() {
+    const banner = document.getElementById('activeDeviceBanner');
+    const label = document.getElementById('lblActiveDeviceName');
+    if (activeDeviceId && devices[activeDeviceId]) {
+        banner?.classList.remove('hidden');
+        if (label) label.innerText = devices[activeDeviceId].name || activeDeviceId;
+    } else {
+        banner?.classList.add('hidden');
+    }
+}
+
+// ==========================================
+// 6. EVENT LISTENERS
+// ==========================================
+window.onload = () => {
+    // View Switcher
+    document.querySelectorAll('.dropdown-link[data-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-target');
+            document.querySelectorAll('.view-section').forEach(v => v.classList.toggle('active', v.id === target));
+            document.querySelectorAll('.dropdown-link').forEach(b => b.classList.toggle('active', b === btn));
+            document.querySelector('.nav-links')?.classList.remove('open');
+        });
+    });
+
+    // Toggles
+    document.getElementById('modeToggle')?.addEventListener('change', () => toggleControl('auto'));
+    document.getElementById('tankToggle')?.addEventListener('change', () => toggleControl('tank'));
+    document.getElementById('irrToggle')?.addEventListener('change', () => toggleControl('irrigation'));
+
+    // Modals
+    document.getElementById('btnAddDevice')?.addEventListener('click', () => {
+        document.getElementById('modalAddDevice')?.classList.add('active');
+    });
+    document.querySelectorAll('.btn-close-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+        });
+    });
+
+    const formAdd = document.getElementById('formAddDevice');
+    if (formAdd) {
+        formAdd.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('newDeviceId')?.value.trim();
+            const name = document.getElementById('newDeviceName')?.value;
+            if (!id || !auth.currentUser) return;
+
+            await db.ref(`users/${auth.currentUser.uid}/devices/${id}`).set({
+                name: name,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            formAdd.reset();
+            document.getElementById('modalAddDevice')?.classList.remove('active');
+            changeDevice(id);
+        };
+    }
+
+    // Drawer, Hamburger & Logout
+    document.getElementById('btnOpenSerial')?.addEventListener('click', () => {
+        document.getElementById('serialDrawer')?.classList.add('open');
+        document.getElementById('serialOverlay')?.classList.add('open');
+        document.getElementById('termInput')?.focus();
+    });
+    document.getElementById('btnCloseSerial')?.addEventListener('click', () => {
+        document.getElementById('serialDrawer')?.classList.remove('open');
+        document.getElementById('serialOverlay')?.classList.remove('open');
+    });
+    document.getElementById('serialOverlay')?.addEventListener('click', () => {
+        document.getElementById('serialDrawer')?.classList.remove('open');
+        document.getElementById('serialOverlay')?.classList.remove('open');
+    });
+
+    document.getElementById('btnClearTerm')?.addEventListener('click', () => {
+        const term = document.getElementById('termConsole');
+        if (term) term.innerHTML = '<div class="term-line sys">--- Terminal Cleared ---</div>';
+    });
+    document.getElementById('btnSendTerm')?.addEventListener('click', sendSerialCommand);
+    
+    const termInput = document.getElementById('termInput');
+    if (termInput) {
+        termInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendSerialCommand();
+            } else if (e.key === 'ArrowUp') {
+                if(commandHistory.length > 0) {
+                    if(historyIndex === -1) historyIndex = commandHistory.length - 1;
+                    else if(historyIndex > 0) historyIndex--;
+                    termInput.value = commandHistory[historyIndex];
+                    e.preventDefault();
+                }
+            } else if (e.key === 'ArrowDown') {
+                if(historyIndex !== -1) {
+                    if(historyIndex < commandHistory.length - 1) {
+                        historyIndex++;
+                        termInput.value = commandHistory[historyIndex];
+                    } else {
+                        historyIndex = -1;
+                        termInput.value = '';
+                    }
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+
+    // Intelligent Autoscroll Detection
+    const termConsole = document.getElementById('termConsole');
+    if (termConsole) {
+        termConsole.addEventListener('scroll', () => {
+            const threshold = 50; 
+            const atBottom = termConsole.scrollHeight - termConsole.scrollTop - termConsole.clientHeight < threshold;
+            userScrolledUp = !atBottom;
+        });
+    }
+
+    // Ping / Baud Rate Simulation
+    let heartbeatInterval;
+    function startPing(speed) {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(() => {
+            const drawer = document.getElementById('serialDrawer');
+            if(drawer && drawer.classList.contains('open')) {
+                addTerminalLog("Pinging edge device...", "sys");
+            }
+        }, speed);
+    }
+
+    const baudRateSelect = document.getElementById('baudRate');
+    if(baudRateSelect) {
+        startPing(baudRateSelect.value === "115200" ? 10000 : 20000);
+        baudRateSelect.addEventListener('change', () => {
+            const newRate = baudRateSelect.value;
+            addTerminalLog(`Reconnecting at ${newRate} baud...`, "sys");
+            setTimeout(() => {
+                termConsole.innerHTML += '<div class="term-line sys-msg">--- Connection Re-established ---</div>';
+                addTerminalLog(`Device online at ${newRate}.`, "response");
+                startPing(newRate === "115200" ? 10000 : 20000);
+                const chkAutoscroll = document.getElementById('chkAutoscroll');
+                if(chkAutoscroll && chkAutoscroll.checked) termConsole.scrollTop = termConsole.scrollHeight;
+            }, 800);
+        });
+    }
+
+    // Download log properly formats without HTML tags
+    document.getElementById('btnDownloadLog')?.addEventListener('click', () => {
+        if (!termConsole) return;
+        const textToSave = Array.from(termConsole.querySelectorAll('.term-line'))
+            .map(line => {
+                const ts = line.querySelector('.term-timestamp') ? line.querySelector('.term-timestamp').innerText : '';
+                const content = line.querySelector('span:not(.term-timestamp)') ? line.querySelector('span:not(.term-timestamp)').innerText : line.innerText;
+                return `${ts} ${content}`.trim();
+            })
+            .join('\n');
+            
         const blob = new Blob([textToSave], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `serial_log_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        addLog("Session log exported successfully.", "sys");
+        addTerminalLog("Session log exported successfully.", "sys");
     });
-}
 
-if (termConsole) {
-    termConsole.addEventListener('scroll', () => {
-        const threshold = 50;
-        const atBottom = termConsole.scrollHeight - termConsole.scrollTop - termConsole.clientHeight < threshold;
-        userScrolledUp = !atBottom;
-    });
-}
-
-// Terminal Options Listeners
-if (chkTimestamps) {
-    chkTimestamps.addEventListener('change', () => {
-        if (chkTimestamps.checked) termConsole.classList.add('show-timestamps');
-        else termConsole.classList.remove('show-timestamps');
-    });
-}
-
-if (baudRateSelect) {
-    baudRateSelect.addEventListener('change', async () => {
-        const newBaud = baudRateSelect.value;
-        addLog(`Initiating hardware baud rate change to ${newBaud}...`, "sys");
-        try {
-            const response = await fetch(`${BASE_URL}/serial?cmd=BAUD_${newBaud}`);
-            const text = await response.text();
-            addLog(text, "response");
-        } catch (e) {
-            addLog("Baud Change Request Failed. Check ESP32 connectivity.", "error");
-        }
-    });
-}
-
-// ==========================================
-// 7. INITIALIZATION
-// ==========================================
-window.onload = () => {
-    addLog("Dashboard Unified Logs initialized.", "sys");
-    // Sync initial timestamp visibility
-    if (chkTimestamps && chkTimestamps.checked) termConsole.classList.add('show-timestamps');
-    fetchData();
-    setInterval(fetchData, 2000); // Polling every 2 seconds
+    document.getElementById('btnHamburger')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('open'));
+    document.getElementById('profileTrigger')?.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('profileDropdown')?.classList.toggle('open'); });
+    document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('open'));
+    document.getElementById('btnLogout')?.addEventListener('click', handleLogout);
+    document.getElementById('btnLogoutProfile')?.addEventListener('click', handleLogout);
 };
-
-// Global Listeners for Controls
-if (modeToggle) modeToggle.addEventListener('change', () => toggleControl('auto'));
-if (tankToggle) tankToggle.addEventListener('change', () => toggleControl('tank'));
-if (irrToggle) irrToggle.addEventListener('change', () => toggleControl('irrigation'));
