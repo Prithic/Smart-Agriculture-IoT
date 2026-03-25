@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Smart Agriculture System</title>
+    <!-- Boxicons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-main);
+            padding: 1rem;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            padding: 3rem 2rem;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .login-header {
+            margin-bottom: 2.5rem;
+        }
+
+        .login-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            font-size: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 4px 12px rgba(21, 128, 61, 0.15);
+        }
+
+        .login-header h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            width: 100%;
+            padding: 0.8rem;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-weight: 600;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1rem;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-google:hover {
+            background: #f9fafb;
+            border-color: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-google img {
+            width: 24px;
+            height: 24px;
+        }
+
+        .footer-text {
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <section class="card login-card">
+        <div class="login-header">
+            <div class="login-icon">
+                <i class='bx bxs-leaf'></i>
+            </div>
+            <h1>Smart Agriculture System</h1>
+            <p>Monitor and control your farm remotely.<br>Please sign in to access your dashboard.</p>
+        </div>
+
+        <button class="btn-google" id="btnLogin">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
+            Sign in with Google
+        </button>
+
+        <p class="footer-text">© 2026 SmartAgri IoT. All rights reserved.</p>
+    </section>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <!-- App Configuration -->
+    <script src="config.js"></script>
+
+    <script>
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+
+        // Check if already logged in
+        if (localStorage.getItem('user')) {
+             window.location.href = 'index.html';
+        }
+
+        const btnLogin = document.getElementById('btnLogin');
+
+        // Login Handler
+        btnLogin.addEventListener('click', () => {
+            // Guard: Disable button to prevent multiple concurrent popups
+            btnLogin.disabled = true;
+            btnLogin.style.opacity = "0.7";
+            btnLogin.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Signing in...';
+
+            const provider = new firebase.auth.GoogleAuthProvider();
+            
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    const user = result.user;
+                    const userData = {
+                        name: user.displayName,
+                        email: user.email,
+                        photo: user.photoURL,
+                        uid: user.uid
+                    };
+                    localStorage.setItem('user', JSON.stringify(userData));
+                    window.location.href = 'index.html';
+                })
+                .catch((error) => {
+                    console.error("Login Error:", error);
+                    // Reset button on error
+                    btnLogin.disabled = false;
+                    btnLogin.style.opacity = "1";
+                    btnLogin.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo"> Sign in with Google';
+                    
+                    if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
+                        alert("Authentication failed: " + error.message);
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

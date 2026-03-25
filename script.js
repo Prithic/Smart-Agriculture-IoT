@@ -10,6 +10,8 @@ let activeDeviceId = localStorage.getItem('activeDeviceId') || "esp32_01";
 let currentSyncPath = null;
 let currentControlState = {};
 let devices = {};
+let isLogsPaused = false;
+let lastLogIndex = -1;
 
 // ==========================================
 // 2. AUTHENTICATION & SESSION
@@ -74,11 +76,43 @@ function initRealtimeSync(uid, deviceId) {
         updateControlUI(controlData); // Requirement 3 & 7
     });
 
-    // 3. Meta (Heartbeat) Listener
+    // 3. Meta (Heartbeat & Logs) Listener
     db.ref(currentSyncPath + '/meta').on('value', (snapshot) => {
         const metaData = snapshot.val() || {};
         const isOnline = (Date.now() - (metaData.lastActive || 0)) < 10000;
         setOnlineStatus(isOnline);
+        
+        console.log("Logs:", metaData.logs || "No logs found");
+        
+        // Handle Logs
+        if (metaData.logs && !isLogsPaused) {
+            const logsData = metaData.logs;
+            const lines = logsData.split('\n').filter(Boolean);
+            
+            if (lines.length > 0) {
+                const lastLine = lines[lines.length - 1];
+                const latestIdx = parseInt(lastLine.split('|')[0]);
+                
+                // If the ESP32 restarted, its index resets to 0.
+                if (lastLogIndex !== -1 && latestIdx < lastLogIndex) {
+                    addTerminalLog("--- ESP32 Reboot Detected / Index Reset ---", "sys");
+                    lastLogIndex = -1; // Reset our tracker
+                }
+                
+                lines.forEach(line => {
+                    const parts = line.split('|');
+                    if (parts.length >= 2) {
+                        const idx = parseInt(parts[0]);
+                        if (idx > lastLogIndex) {
+                            const msg = parts.slice(1).join('|');
+                            const isCmdResponse = msg.includes("CMD RECEIVED") || msg.includes("EXECUTED") || msg.includes("AUTO:");
+                            addTerminalLog(isCmdResponse ? msg : `ESP32: ${msg}`, "response");
+                            lastLogIndex = idx;
+                        }
+                    }
+                });
+            }
+        }
     });
     
     updateActiveDeviceUI();
@@ -167,6 +201,7 @@ async function toggleControl(type) {
         val = document.getElementById('irrToggle').checked ? 1 : 0;
     }
 
+    addTerminalLog(`CMD SENT: ${type} ${val}`, "cmd");
     try { await db.ref(path + key).set(val); } catch (e) { console.error("Control Error:", e); }
 }
 
@@ -200,8 +235,8 @@ function addTerminalLog(msg, type = 'sys') {
         term.scrollTop = term.scrollHeight;
     }
     
-    // Limit lines
-    if (term.childElementCount > 200) {
+    // Limit lines (Performance Fixed)
+    if (term.childElementCount > 50) {
         term.removeChild(term.firstChild);
     }
 }
@@ -218,28 +253,11 @@ async function sendSerialCommand() {
 
     const uid = auth.currentUser?.uid;
     input.value = '';
-    addTerminalLog(cmd, 'cmd');
+    addTerminalLog(`CMD SENT: ${cmd}`, 'cmd');
 
     // Execute Cloud Write
     try { 
         await db.ref(`users/${uid}/devices/${activeDeviceId}/control/command`).set(cmd); 
-        
-        // Local Simulation Response (Since ESP32 doesn't send logs back)
-        setTimeout(() => {
-            const rawCmd = cmd.toLowerCase();
-            if (rawCmd === 'help') {
-                addTerminalLog("Available: STATUS, AUTO, MANUAL", "sys");
-            } else if (rawCmd === 'auto') {
-                addTerminalLog("Switching to AUTO mode...", "response");
-            } else if (rawCmd === 'manual') {
-                addTerminalLog("Switching to MANUAL mode...", "response");
-            } else if (rawCmd === 'status') {
-                addTerminalLog("Fetching status...", "sys");
-            } else {
-                addTerminalLog(`Command '${cmd}' sent to device.`, "response");
-            }
-        }, 300);
-        
     } catch (e) { 
         addTerminalLog("Cloud Write Failed", "error"); 
     }
@@ -269,10 +287,78 @@ function renderDeviceList() {
 
     sidebarList.innerHTML = Object.entries(devices).map(([id, dev]) => `
         <div class="device-item-mini ${id === activeDeviceId ? 'active' : ''}" onclick="changeDevice('${id}')">
-            <span class="device-name-mini">${dev.name || id}</span>
-            <span class="device-id-mini">${id}</span>
+            <div class="device-info-col" style="flex:1;">
+                <span class="device-name-mini">${dev.name || id}</span>
+                <span class="device-id-mini" style="font-size: 0.75rem; color: #94a3b8;">${id}</span>
+            </div>
+            <div class="device-actions-mini" onclick="event.stopPropagation()" style="display:flex; gap:0.3rem;">
+                <button class="btn-edit-mini" data-id="${id}" title="Rename" style="background:none; border:none; color:#94a3b8; cursor:pointer;"><i class='bx bx-edit'></i></button>
+                <button class="btn-delete-mini" data-id="${id}" title="Remove" style="background:none; border:none; color:#ef4444; cursor:pointer;"><i class='bx bx-trash'></i></button>
+            </div>
         </div>
     `).join('') || '<div class="device-empty">No devices found.</div>';
+
+    // Bind Edit Action
+    document.querySelectorAll('.btn-edit-mini').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const editIdInput = document.getElementById('editDeviceId');
+            const editNameInput = document.getElementById('editDeviceName');
+            const modal = document.getElementById('modalEditDevice');
+            if (editIdInput && editNameInput && modal) {
+                editIdInput.value = id;
+                editNameInput.value = devices[id].name || id;
+                modal.classList.add('active');
+            }
+        });
+    });
+
+    // Bind Delete Action
+    document.querySelectorAll('.btn-delete-mini').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const name = devices[id]?.name || id;
+            if (confirm(`Are you sure you want to permanently delete "${name}"? All logging and telemetry data will be lost forever.`)) {
+                await removeDevice(id);
+            }
+        });
+    });
+}
+
+async function removeDevice(deviceId) {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !deviceId) return;
+    
+    try {
+        await db.ref(`users/${uid}/devices/${deviceId}`).remove();
+        delete devices[deviceId];
+        
+        if (activeDeviceId === deviceId) {
+            if (currentSyncPath) {
+                db.ref(currentSyncPath + '/sensor').off();
+                db.ref(currentSyncPath + '/control').off();
+                db.ref(currentSyncPath + '/meta').off();
+                currentSyncPath = null;
+            }
+            activeDeviceId = Object.keys(devices)[0] || null;
+            
+            if (activeDeviceId) {
+                localStorage.setItem('activeDeviceId', activeDeviceId);
+                initRealtimeSync(uid, activeDeviceId);
+            } else {
+                localStorage.removeItem('activeDeviceId');
+                updateActiveDeviceUI();
+                setOnlineStatus(false);
+            }
+        }
+        renderDeviceList();
+        addTerminalLog(`Device "${deviceId}" permanently deleted from cloud.`, 'sys');
+    } catch (e) {
+        console.error("Error removing device:", e);
+        addTerminalLog(`Failed to delete device: ${e.message}`, 'error');
+    }
 }
 
 function changeDevice(id) {
@@ -342,6 +428,19 @@ window.onload = () => {
         };
     }
 
+    const formEdit = document.getElementById('formEditDevice');
+    if (formEdit) {
+        formEdit.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editDeviceId')?.value;
+            const name = document.getElementById('editDeviceName')?.value;
+            if (!id || !auth.currentUser) return;
+
+            await db.ref(`users/${auth.currentUser.uid}/devices/${id}/name`).set(name);
+            document.getElementById('modalEditDevice')?.classList.remove('active');
+        };
+    }
+
     // Drawer, Hamburger & Logout
     document.getElementById('btnOpenSerial')?.addEventListener('click', () => {
         document.getElementById('serialDrawer')?.classList.add('open');
@@ -361,6 +460,23 @@ window.onload = () => {
         const term = document.getElementById('termConsole');
         if (term) term.innerHTML = '<div class="term-line sys">--- Terminal Cleared ---</div>';
     });
+
+    document.getElementById('btnPauseLogs')?.addEventListener('click', () => {
+        isLogsPaused = !isLogsPaused;
+        const icon = document.getElementById('iconPauseLogs');
+        if (icon) {
+            if (isLogsPaused) {
+                icon.className = 'bx bx-play';
+                document.getElementById('btnPauseLogs').title = "Resume Logs";
+                addTerminalLog("--- Logs Paused ---", "sys");
+            } else {
+                icon.className = 'bx bx-pause';
+                document.getElementById('btnPauseLogs').title = "Pause Logs";
+                addTerminalLog("--- Logs Resumed ---", "sys");
+            }
+        }
+    });
+
     document.getElementById('btnSendTerm')?.addEventListener('click', sendSerialCommand);
     
     const termInput = document.getElementById('termInput');

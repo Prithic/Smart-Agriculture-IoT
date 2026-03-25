@@ -1,28 +1,30 @@
 #include <WiFi.h>
-#include <WebServer.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
 #include <Firebase_ESP_Client.h>
- #include "secrets.h"
+#include "secrets.h"
 
 // Provide the RTDB payload printing helper and sign-in helper
 #include <addons/TokenHelper.h>
 #include <addons/RTDBHelper.h>
 
+// ===== FORWARD DECLARATIONS =====
+void updateSensors();
+void runAutomation();
+void syncHardware();
+void initFirebase();
+void syncFirebase();
+String executeCommand(String cmd);
 
 // ===== WIFI =====
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 
 // ===== FIREBASE =====
-// Note: DATABASE_URL and DATABASE_SECRET are defined in secrets.h
-
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 unsigned long sendDataPrevMillis = 0;
-bool signupOK = false;
-
 
 // ===== PINS =====
 #define DHTPIN 4
@@ -35,7 +37,6 @@ bool signupOK = false;
 
 // ===== OBJECTS =====
 DHT dht(DHTPIN, DHTTYPE);
-WebServer server(80);
 
 // ===== STATE =====
 bool autoMode = true;
@@ -45,15 +46,35 @@ float temperature = 0;
 float humidity = 0;
 float moisture = 0;
 int tankLevel = 0; 
-long pendingBaud = 0;
-unsigned long baudChangeTime = 0;
 
 // ===== LOGGING SYSTEM =====
-String systemLogs = ""; // Store last few logs
+const int MAX_LOG_LINES = 30;
+String logLines[MAX_LOG_LINES];
+int logCount = 0;
+int globalLogIndex = 0;
+bool logsChanged = false;
+
 void addSystemLog(String msg) {
-  if (systemLogs.length() > 500) systemLogs = ""; // Simple clear
-  systemLogs += msg + "\n";
-  Serial.println("SYSTEM: " + msg);
+  Serial.println(msg);
+  String entry = String(globalLogIndex++) + "|" + msg;
+  
+  if (logCount >= MAX_LOG_LINES) {
+    for (int i = 1; i < MAX_LOG_LINES; i++) {
+        logLines[i - 1] = logLines[i];
+    }
+    logLines[MAX_LOG_LINES - 1] = entry;
+  } else {
+    logLines[logCount++] = entry;
+  }
+  logsChanged = true;
+}
+
+String getLogsString() {
+  String result = "";
+  for(int i = 0; i < logCount; i++) {
+    result += logLines[i] + "\n";
+  }
+  return result;
 }
 
 // ===== FIREBASE INIT =====
@@ -62,84 +83,104 @@ void initFirebase() {
   config.signer.tokens.legacy_token = DATABASE_SECRET;
   Firebase.reconnectWiFi(true);
   Firebase.begin(&config, &auth);
-  addSystemLog("Firebase Initializing...");
+  Serial.println("Firebase Connected");
 }
 
 // ===== FIREBASE SYNC =====
 void syncFirebase() {
-  if (Firebase.ready() && (millis() - sendDataPrevMillis > 2500 || sendDataPrevMillis == 0)) {
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > 3000 || sendDataPrevMillis == 0)) {
     sendDataPrevMillis = millis();
 
+    String basePath = "/users/" + String(USER_ID) + "/devices/" + String(DEVICE_ID);
     bool success = true;
     
     // 1. Send Sensor Data
-    if (!Firebase.RTDB.setFloat(&fbdo, "/sensor/temperature", temperature)) success = false;
-    if (!Firebase.RTDB.setFloat(&fbdo, "/sensor/humidity", humidity)) success = false;
-    if (!Firebase.RTDB.setInt(&fbdo, "/sensor/moisture", (int)moisture)) success = false;
-    if (!Firebase.RTDB.setInt(&fbdo, "/sensor/tankLevel", tankLevel)) success = false;
+    if (!Firebase.RTDB.setFloat(&fbdo, basePath + "/sensor/temperature", temperature)) success = false;
+    if (!Firebase.RTDB.setFloat(&fbdo, basePath + "/sensor/humidity", humidity)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, basePath + "/sensor/moisture", (int)moisture)) success = false;
+    if (!Firebase.RTDB.setInt(&fbdo, basePath + "/sensor/tankLevel", tankLevel)) success = false;
+    
+    // 2. Heartbeat (lastActive)
+    if (!Firebase.RTDB.setTimestamp(&fbdo, basePath + "/meta/lastActive")) success = false;
+
+    if (logsChanged) {
+        if (Firebase.RTDB.setString(&fbdo, basePath + "/meta/logs", getLogsString())) {
+            logsChanged = false;
+        }
+    }
 
     if (success) {
-      Serial.println("FIREBASE: Data sent successfully");
+      static int syncCount = 0;
+      if (syncCount++ % 20 == 0) addSystemLog("Sending Data..."); // Reduce spam
     } else {
-      Serial.print("FIREBASE: Data send failed: ");
-      Serial.println(fbdo.errorReason());
+      addSystemLog("Sync failed: " + fbdo.errorReason());
     }
 
-    // 2. Read Control Data
-    // Mode
-    if (Firebase.RTDB.getString(&fbdo, "/control/mode")) {
+    // 3. Read Control Data
+    if (Firebase.RTDB.getString(&fbdo, basePath + "/control/mode")) {
       if (fbdo.dataType() == "string") {
         String m = fbdo.stringData();
-        if (m == "AUTO") {
-          if (!autoMode) {
-            autoMode = true;
-            addSystemLog("FIREBASE: Mode switched to AUTO");
-          }
-        } else if (m == "MANUAL") {
-          if (autoMode) {
-            autoMode = false;
-            addSystemLog("FIREBASE: Mode switched to MANUAL");
-          }
+        if (m == "AUTO" && !autoMode) {
+          addSystemLog("CMD RECEIVED: mode AUTO");
+          autoMode = true;
+          Firebase.RTDB.setString(&fbdo, basePath + "/control/mode", "AUTO");
+          addSystemLog("EXECUTED: mode AUTO");
+        } else if (m == "MANUAL" && autoMode) {
+          addSystemLog("CMD RECEIVED: mode MANUAL");
+          autoMode = false;
+          Firebase.RTDB.setString(&fbdo, basePath + "/control/mode", "MANUAL");
+          addSystemLog("EXECUTED: mode MANUAL");
         }
       }
     }
 
-    // Motors (Only if MANUAL)
     if (!autoMode) {
-      if (Firebase.RTDB.getInt(&fbdo, "/control/waterMotor")) {
+      if (Firebase.RTDB.getInt(&fbdo, basePath + "/control/waterMotor")) {
         bool val = (fbdo.intData() == 1);
         if (waterMotor != val) {
+          addSystemLog("CMD RECEIVED: waterMotor " + String(val ? "ON" : "OFF"));
           waterMotor = val;
-          addSystemLog("FIREBASE: Tank Motor " + String(waterMotor ? "ON" : "OFF"));
+          Firebase.RTDB.setInt(&fbdo, basePath + "/control/waterMotor", waterMotor ? 1 : 0);
+          addSystemLog("EXECUTED: waterMotor " + String(val ? "ON" : "OFF"));
         }
       }
-      if (Firebase.RTDB.getInt(&fbdo, "/control/soilMotor")) {
+      if (Firebase.RTDB.getInt(&fbdo, basePath + "/control/soilMotor")) {
         bool val = (fbdo.intData() == 1);
         if (soilMotor != val) {
+          addSystemLog("CMD RECEIVED: soilMotor " + String(val ? "ON" : "OFF"));
           soilMotor = val;
-          addSystemLog("FIREBASE: Soil Motor " + String(soilMotor ? "ON" : "OFF"));
+          Firebase.RTDB.setInt(&fbdo, basePath + "/control/soilMotor", soilMotor ? 1 : 0);
+          addSystemLog("EXECUTED: soilMotor " + String(val ? "ON" : "OFF"));
+        }
+      }
+    } else {
+      Firebase.RTDB.setInt(&fbdo, basePath + "/control/waterMotor", waterMotor ? 1 : 0);
+      Firebase.RTDB.setInt(&fbdo, basePath + "/control/soilMotor", soilMotor ? 1 : 0);
+    }
+
+    // 4. Cloud Serial Command
+    if (Firebase.RTDB.getString(&fbdo, basePath + "/control/command")) {
+      if (fbdo.dataType() == "string") {
+        String cmd = fbdo.stringData();
+        if (cmd != "" && cmd != "NONE") {
+          addSystemLog("CMD RECEIVED: " + cmd);
+          String execRes = executeCommand(cmd);
+          addSystemLog("EXECUTED: " + execRes);
+          // Clear command once executed
+          Firebase.RTDB.setString(&fbdo, basePath + "/control/command", "NONE");
         }
       }
     }
   }
 }
 
-// ===== SENSOR UPDATE =====
-
+// ===== SENSOR UPDATE (TEST MODE - NO SENSORS) =====
 void updateSensors() {
-  float t = dht.readTemperature();
-  float h = dht.readHumidity();
-  if(!isnan(t)) temperature = t;
-  if(!isnan(h)) humidity = h;
-
-  int rawSoil = analogRead(SOIL_PIN);
-  moisture = map(rawSoil, 4095, 0, 0, 100); 
-
-  int low = digitalRead(TANK_LOW);
-  int high = digitalRead(TANK_HIGH);
-  if (low == HIGH && high == HIGH) tankLevel = 0;       
-  else if (low == LOW && high == HIGH) tankLevel = 50;  
-  else tankLevel = 100;                                 
+  // Generate random data to test Firebase and Dashboard without physical hardware
+  temperature = random(20, 36);
+  humidity = random(40, 81);
+  moisture = random(30, 91);
+  tankLevel = random(10, 101);
 }
 
 // ===== AUTOMATION =====
@@ -172,32 +213,18 @@ void syncHardware() {
 String executeCommand(String cmd) {
   cmd.trim();
   cmd.toUpperCase();
-  String result = "";
-
-  if (cmd == "TANK_ON") {
-    waterMotor = true; autoMode = false;
-    result = "Tank Motor ON";
+  
+  String result = "UNKNOWN CMD";
+  if (cmd == "AUTO") { autoMode = true; result = "AUTO"; }
+  else if (cmd == "MANUAL") { autoMode = false; result = "MANUAL"; }
+  else if (cmd == "STATUS") { 
+    updateSensors(); 
+    result = "T:" + String((int)temperature) + " H:" + String((int)humidity); 
   }
-  else if (cmd == "TANK_OFF") {
-    waterMotor = false; autoMode = false;
-    result = "Tank Motor OFF";
-  }
-  else if (cmd == "IRR_ON") {
-    soilMotor = true; autoMode = false;
-    result = "Irrigation ON";
-  }
-  else if (cmd == "IRR_OFF") {
-    soilMotor = false; autoMode = false;
-    result = "Irrigation OFF";
-  }
-  else if (cmd == "AUTO") {
-    autoMode = true;
-    result = "Mode: AUTO";
-  }
-  else if (cmd == "MANUAL") {
-    autoMode = false;
-    result = "Mode: MANUAL";
-  }
+  else if (cmd == "TANK_ON") { waterMotor = true; autoMode = false; result = "Tank ON"; }
+  else if (cmd == "TANK_OFF") { waterMotor = false; autoMode = false; result = "Tank OFF"; }
+  else if (cmd == "IRR_ON") { soilMotor = true; autoMode = false; result = "Irrigation ON"; }
+  else if (cmd == "IRR_OFF") { soilMotor = false; autoMode = false; result = "Irrigation OFF"; }
   else if (cmd.startsWith("BAUD_")) {
     long newBaud = cmd.substring(5).toInt();
     if (newBaud > 0) {
@@ -206,69 +233,8 @@ String executeCommand(String cmd) {
       result = "Baud rate changing to " + String(newBaud);
     }
   }
-  else if (cmd == "STATUS") {
-    updateSensors();
-    result = "T:" + String(temperature) + " H:" + String(humidity) + " M:" + String(moisture) + " Tank:" + String(tankLevel);
-  }
-  else {
-    result = "Unknown Command: " + cmd;
-  }
-
-  addSystemLog(result);
-  return result;
-}
-
-// ===== API HANDLERS =====
-void handleData() {
-  updateSensors();
-  StaticJsonDocument<1024> doc;
-  doc["temperature"] = temperature;
-  doc["humidity"] = humidity;
-  doc["moisture"] = moisture;
-  doc["tankLevel"] = tankLevel;
-  doc["waterMotor"] = waterMotor ? 1 : 0;
-  doc["soilMotor"] = soilMotor ? 1 : 0;
-  doc["mode"] = autoMode ? "AUTO" : "MANUAL";
-  doc["logs"] = systemLogs;
   
-  systemLogs = ""; // Clear buffer after sending to web
-
-  String response;
-  serializeJson(doc, response);
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", response);
-}
-
-void handleControl() {
-  String response = "";
-  if (server.hasArg("tank")) {
-    response = executeCommand(server.arg("tank").toInt() == 1 ? "TANK_ON" : "TANK_OFF");
-  }
-  if (server.hasArg("soil")) {
-    if (response != "") response += " | ";
-    response += executeCommand(server.arg("soil").toInt() == 1 ? "IRR_ON" : "IRR_OFF");
-  }
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "text/plain", response);
-}
-
-void handleMode() {
-  String response = "";
-  if (server.hasArg("state")) {
-    response = executeCommand(server.arg("state") == "auto" ? "AUTO" : "MANUAL");
-  }
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "text/plain", response);
-}
-
-void handleSerial() {
-  if (server.hasArg("cmd")) {
-    String response = executeCommand(server.arg("cmd"));
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", response);
-  } else {
-    server.send(400, "text/plain", "Missing cmd");
-  }
+  return result;
 }
 
 void checkSerial() {
@@ -276,14 +242,16 @@ void checkSerial() {
     String input = Serial.readStringUntil('\n');
     input.trim();
     if (input.length() > 0) {
-      addSystemLog("> " + input);
-      executeCommand(input);
+      addSystemLog("CMD RECEIVED: " + input);
+      String res = executeCommand(input);
+      addSystemLog("EXECUTED: " + res);
     }
   }
 }
 
 void setup() {
   Serial.begin(9600);
+  addSystemLog("Booting...");
   pinMode(WATER_MOTOR_PIN, OUTPUT);
   pinMode(SOIL_MOTOR_PIN, OUTPUT);
   pinMode(TANK_LOW, INPUT_PULLUP);
@@ -291,26 +259,22 @@ void setup() {
   digitalWrite(WATER_MOTOR_PIN, HIGH);
   digitalWrite(SOIL_MOTOR_PIN, HIGH);
   dht.begin();
+  
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.println("\nReady! IP: " + WiFi.localIP().toString());
-
-  server.on("/data", handleData);
-  server.on("/control", handleControl);
-  server.on("/mode", handleMode);
-  server.on("/serial", handleSerial);
-  server.begin();
+  
+  Serial.print("WiFi Connecting...");
+  while (WiFi.status() != WL_CONNECTED) { 
+    delay(500); 
+    Serial.print("."); 
+  }
+  addSystemLog("WiFi Connected");
+  
   initFirebase();
 }
 
 void loop() {
-  server.handleClient();
   checkSerial();
   syncFirebase();
-  if (pendingBaud > 0 && millis() > baudChangeTime) {
-    Serial.end(); delay(100); Serial.begin(pendingBaud);
-    pendingBaud = 0;
-  }
   updateSensors();
   if (autoMode) runAutomation();
   syncHardware();

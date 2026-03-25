@@ -1,38 +1,3 @@
-// --- DROPDOWN NAVIGATION ---
-const dropdownLinks = document.querySelectorAll('.dropdown-link');
-const viewSections = document.querySelectorAll('.view-section');
-const btnHamburger = document.getElementById('btnHamburger');
-const navDropdown = document.getElementById('navDropdown');
-
-function toggleDropdown(e) {
-    if(navDropdown) navDropdown.classList.toggle('open');
-    if(e) e.stopPropagation();
-}
-
-function closeDropdown() {
-    if(navDropdown) navDropdown.classList.remove('open');
-}
-
-if(btnHamburger) btnHamburger.addEventListener('click', toggleDropdown);
-
-// Close dropdown when clicking outside
-window.addEventListener('click', (e) => {
-    if(navDropdown && navDropdown.classList.contains('open') && !btnHamburger.contains(e.target) && !navDropdown.contains(e.target)) {
-        closeDropdown();
-    }
-});
-
-dropdownLinks.forEach(btn => {
-    btn.addEventListener('click', () => {
-        dropdownLinks.forEach(b => b.classList.remove('active'));
-        viewSections.forEach(v => v.classList.remove('active'));
-        
-        btn.classList.add('active');
-        document.getElementById(btn.getAttribute('data-target')).classList.add('active');
-        closeDropdown();
-    });
-});
-
 // --- CHART INITIALIZATION ---
 // Setup common chart styling
 Chart.defaults.color = '#6b7280';
@@ -152,7 +117,8 @@ window.processAnalytics = function(data) {
             motorConsecutiveOnTicks++;
             
             // Alert: Dry Run Detection
-            if (previousTankLevel !== null && previousTankLevel === data.tankStatus && motorConsecutiveOnTicks > 3) {
+            const currentTankLevel = Number(data.tankLevel ?? data.tankStatus ?? 0);
+            if (previousTankLevel !== null && previousTankLevel === currentTankLevel && motorConsecutiveOnTicks > 3) {
                 if (typeof triggerAlert === 'function') {
                     triggerAlert("warn", "Dry Run Detected", "Motor is actively running but water tank level is unchanged.");
                 }
@@ -300,7 +266,7 @@ window.processAnalytics = function(data) {
             }
         }
         
-        previousTankLevel = data.tankStatus;
+        previousTankLevel = Number(data.tankLevel ?? data.tankStatus ?? 0);
     } catch (err) {
         console.error("CRITICAL ANALYTICS CRASH:", err);
         if (typeof triggerAlert === 'function') {
