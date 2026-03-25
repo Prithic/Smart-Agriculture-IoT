@@ -12,6 +12,7 @@ let currentControlState = {};
 let devices = {};
 let isLogsPaused = false;
 let lastLogIndex = -1;
+const syncRegistry = {}; // Prevent duplicate listener proliferation
 
 // ==========================================
 // 2. AUTHENTICATION & SESSION
@@ -41,77 +42,60 @@ function handleLogout() {
 // ==========================================
 function initRealtimeSync(uid, deviceId) {
     if (!uid || !deviceId) return;
+    const newPath = `users/${uid}/devices/${deviceId}`;
+    if (currentSyncPath === newPath) return; // Prevent redundant sync cycles
     
-    if (currentSyncPath) {
-        db.ref(currentSyncPath + '/sensor').off();
-        db.ref(currentSyncPath + '/control').off();
-        db.ref(currentSyncPath + '/meta').off();
-    }
+    // Clean registry before switching
+    Object.keys(syncRegistry).forEach(k => { if(syncRegistry[k]) { db.ref(syncRegistry[k].path).off(); delete syncRegistry[k]; } });
 
-    currentSyncPath = `users/${uid}/devices/${deviceId}`;
+    currentSyncPath = newPath;
     console.log("Listening Path:", currentSyncPath);
 
     // 1. Sensor Listener
-    db.ref(currentSyncPath + '/sensor').on('value', (snapshot) => {
+    const sensorRef = db.ref(currentSyncPath + '/sensor');
+    syncRegistry.sensor = { path: currentSyncPath + '/sensor' };
+    sensorRef.on('value', (snapshot) => {
         const sensorData = snapshot.val() || {};
-        console.log("Firebase Data:", sensorData);
-        if (sensorData) {
-            updateSensorUI(sensorData);
-            if (typeof window.processAnalytics === 'function') {
-                window.processAnalytics({
-                    ...sensorData,
-                    waterMotor: parseInt(currentControlState.waterMotor ?? 0),
-                    soilMotor: parseInt(currentControlState.soilMotor ?? 0),
-                    mode: currentControlState.mode ?? "MANUAL"
-                });
-            }
+        updateSensorUI(sensorData);
+        if (typeof window.processAnalytics === 'function') {
+            window.processAnalytics({
+                ...sensorData,
+                waterMotor: parseInt(currentControlState.waterMotor ?? 0),
+                soilMotor: parseInt(currentControlState.soilMotor ?? 0),
+                mode: currentControlState.mode ?? "MANUAL"
+            });
         }
     });
 
-    // 2. Control Listener (Requirement 1 & 2)
-    db.ref(currentSyncPath + '/control').on('value', (snapshot) => {
+    // 2. Control Listener
+    const ctrlRef = db.ref(currentSyncPath + '/control');
+    syncRegistry.control = { path: currentSyncPath + '/control' };
+    ctrlRef.on('value', (snapshot) => {
         const controlData = snapshot.val() || {};
         currentControlState = controlData; 
-        console.log("Control Data:", controlData); // Requirement 5
-        updateControlUI(controlData); // Requirement 3 & 7
+        updateControlUI(controlData);
     });
 
-    // 3. Meta (Heartbeat & Logs) Listener
-    db.ref(currentSyncPath + '/meta').on('value', (snapshot) => {
-        const metaData = snapshot.val() || {};
-        const isOnline = (Date.now() - (metaData.lastActive || 0)) < 10000;
+    // 3. Status Listener (Correct Path)
+    const statusRef = db.ref(currentSyncPath + '/meta/status');
+    syncRegistry.status = { path: currentSyncPath + '/meta/status' };
+    statusRef.on('value', (snapshot) => {
+        const st = snapshot.val() || {};
+        const isOnline = (st.online === true && (Date.now() - (st.ts || 0)) < 15000);
         setOnlineStatus(isOnline);
+    });
+    
+    // 4. Logs Listener (Production Push-ID Model)
+    const logRef = db.ref(currentSyncPath + '/meta/logs');
+    syncRegistry.logs = { path: currentSyncPath + '/meta/logs' };
+    logRef.limitToLast(20).on('child_added', (snapshot) => {
+        if (isLogsPaused) return;
+        const data = snapshot.val();
+        const msg = typeof data === 'object' ? data.msg : data;
         
-        console.log("Logs:", metaData.logs || "No logs found");
-        
-        // Handle Logs
-        if (metaData.logs && !isLogsPaused) {
-            const logsData = metaData.logs;
-            const lines = logsData.split('\n').filter(Boolean);
-            
-            if (lines.length > 0) {
-                const lastLine = lines[lines.length - 1];
-                const latestIdx = parseInt(lastLine.split('|')[0]);
-                
-                // If the ESP32 restarted, its index resets to 0.
-                if (lastLogIndex !== -1 && latestIdx < lastLogIndex) {
-                    addTerminalLog("--- ESP32 Reboot Detected / Index Reset ---", "sys");
-                    lastLogIndex = -1; // Reset our tracker
-                }
-                
-                lines.forEach(line => {
-                    const parts = line.split('|');
-                    if (parts.length >= 2) {
-                        const idx = parseInt(parts[0]);
-                        if (idx > lastLogIndex) {
-                            const msg = parts.slice(1).join('|');
-                            const isCmdResponse = msg.includes("CMD RECEIVED") || msg.includes("EXECUTED") || msg.includes("AUTO:");
-                            addTerminalLog(isCmdResponse ? msg : `ESP32: ${msg}`, "response");
-                            lastLogIndex = idx;
-                        }
-                    }
-                });
-            }
+        if (msg) {
+            const isCmd = msg.includes("CMD") || msg.includes("EXECUTED") || msg.includes("AUTO:");
+            addTerminalLog(isCmd ? msg : `ESP32: ${msg}`, isCmd ? "cmd" : "response");
         }
     });
     
@@ -128,7 +112,7 @@ function updateSensorUI(sensor) {
 
     for (const [id, val] of Object.entries(fields)) {
         const el = document.getElementById(id);
-        if (el) el.innerText = val;
+        if (el && el.innerText !== val) el.innerText = val;
     }
 
     const tankWaterLevel = document.getElementById('tankWaterLevel');
@@ -145,10 +129,16 @@ function updateControlUI(control) {
     const irrToggle = document.getElementById('irrToggle');
     const modeToggle = document.getElementById('modeToggle');
 
-    // Requirement 3: Update UI elements dynamically
-    if (tankToggle) { tankToggle.checked = isTankOn; tankToggle.disabled = isAuto; }
-    if (irrToggle) { irrToggle.checked = isIrrOn; irrToggle.disabled = isAuto; }
-    if (modeToggle) modeToggle.checked = isAuto;
+    // Requirement 3: Update UI elements dynamically with diffing
+    if (tankToggle) { 
+        if (tankToggle.checked !== isTankOn) tankToggle.checked = isTankOn; 
+        if (tankToggle.disabled !== isAuto) tankToggle.disabled = isAuto; 
+    }
+    if (irrToggle) { 
+        if (irrToggle.checked !== isIrrOn) irrToggle.checked = isIrrOn; 
+        if (irrToggle.disabled !== isAuto) irrToggle.disabled = isAuto; 
+    }
+    if (modeToggle && modeToggle.checked !== isAuto) modeToggle.checked = isAuto;
 
     // Requirement 7: Fix UI state mismatch
     const tankBadge = document.getElementById('tankMotorBadge');
@@ -156,16 +146,22 @@ function updateControlUI(control) {
     const modeLabel = document.getElementById('modeLabelHeader');
 
     if (tankBadge) {
-        tankBadge.innerText = isTankOn ? "ON" : "OFF";
-        tankBadge.className = isTankOn ? "ctrl-badge badge-ok" : "ctrl-badge badge-warn";
+        const txt = isTankOn ? "ON" : "OFF";
+        const cls = isTankOn ? "ctrl-badge badge-ok" : "ctrl-badge badge-warn";
+        if (tankBadge.innerText !== txt) tankBadge.innerText = txt;
+        if (tankBadge.className !== cls) tankBadge.className = cls;
     }
     if (irrBadge) {
-        irrBadge.innerText = isIrrOn ? "ON" : "OFF";
-        irrBadge.className = isIrrOn ? "ctrl-badge badge-ok" : "ctrl-badge badge-warn";
+        const txt = isIrrOn ? "ON" : "OFF";
+        const cls = isIrrOn ? "ctrl-badge badge-ok" : "ctrl-badge badge-warn";
+        if (irrBadge.innerText !== txt) irrBadge.innerText = txt;
+        if (irrBadge.className !== cls) irrBadge.className = cls;
     }
     if (modeLabel) {
-        modeLabel.innerText = isAuto ? "AUTO" : "MANUAL";
-        modeLabel.className = isAuto ? "mode-label auto" : "mode-label";
+        const txt = isAuto ? "AUTO" : "MANUAL";
+        const cls = isAuto ? "mode-label auto" : "mode-label";
+        if (modeLabel.innerText !== txt) modeLabel.innerText = txt;
+        if (modeLabel.className !== cls) modeLabel.className = cls;
     }
 
     // Flow Animations
@@ -176,8 +172,10 @@ function updateControlUI(control) {
 function setOnlineStatus(online) {
     const connDot = document.getElementById('connDot');
     const headerStatusMsg = document.getElementById('headerStatusMsg');
-    if (connDot) connDot.className = `pulse-dot ${online ? 'online' : 'offline'}`;
-    if (headerStatusMsg) headerStatusMsg.innerText = online ? "Online" : "Offline";
+    const newCls = `pulse-dot ${online ? 'online' : 'offline'}`;
+    const newTxt = online ? "Online" : "Offline";
+    if (connDot && connDot.className !== newCls) connDot.className = newCls;
+    if (headerStatusMsg && headerStatusMsg.innerText !== newTxt) headerStatusMsg.innerText = newTxt;
 }
 
 // ==========================================
@@ -516,28 +514,15 @@ window.onload = () => {
         });
     }
 
-    // Ping / Baud Rate Simulation
-    let heartbeatInterval;
-    function startPing(speed) {
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-        heartbeatInterval = setInterval(() => {
-            const drawer = document.getElementById('serialDrawer');
-            if(drawer && drawer.classList.contains('open')) {
-                addTerminalLog("Pinging edge device...", "sys");
-            }
-        }, speed);
-    }
-
+    // BAUDRATE RECONNECT LOGIC
     const baudRateSelect = document.getElementById('baudRate');
     if(baudRateSelect) {
-        startPing(baudRateSelect.value === "115200" ? 10000 : 20000);
         baudRateSelect.addEventListener('change', () => {
             const newRate = baudRateSelect.value;
             addTerminalLog(`Reconnecting at ${newRate} baud...`, "sys");
             setTimeout(() => {
-                termConsole.innerHTML += '<div class="term-line sys-msg">--- Connection Re-established ---</div>';
+                addTerminalLog(`--- Connection Re-established ---`, "sys");
                 addTerminalLog(`Device online at ${newRate}.`, "response");
-                startPing(newRate === "115200" ? 10000 : 20000);
                 const chkAutoscroll = document.getElementById('chkAutoscroll');
                 if(chkAutoscroll && chkAutoscroll.checked) termConsole.scrollTop = termConsole.scrollHeight;
             }, 800);

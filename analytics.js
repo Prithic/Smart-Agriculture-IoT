@@ -20,7 +20,7 @@ const weatherChart = new Chart(weatherCtx, {
     data: { 
         labels: [], 
         datasets: [
-            { label: 'Temperature (°C)', data: [], borderColor: '#f97316', borderWidth: 2, tension: 0.4, yAxisID: 'y' },
+            { label: 'Temperature (┬░C)', data: [], borderColor: '#f97316', borderWidth: 2, tension: 0.4, yAxisID: 'y' },
             { label: 'Humidity (%)', data: [], borderColor: '#0ea5e9', borderWidth: 2, tension: 0.4, yAxisID: 'y1' }
         ] 
     },
@@ -53,7 +53,7 @@ let previousTankLevel = null;
 
 // Energy & Motor Tracking
 const POWER_KW = 0.5; // kW
-const COST_PER_KWH = 6.0; // ₹
+const COST_PER_KWH = 6.0; // Ôé╣
 let irrTicksToday = 0;
 let irrTicksSession = 0;
 let tankTicksToday = 0;
@@ -182,7 +182,7 @@ window.processAnalytics = function(data) {
         // Alerts Triggering
         if (typeof triggerAlert === 'function') {
             if (motorConsecutiveOnTicks > 15) triggerAlert("warn", "Extended Irrigation Warning", "Motor has been running continuously for suspiciously long.");
-            if (data.temperature > 40) triggerAlert("warn", "Critical Heat Anomaly", `Temperature exceeded 40°C (Current: ${data.temperature}°C)`);
+            if (data.temperature > 40) triggerAlert("warn", "Critical Heat Anomaly", `Temperature exceeded 40┬░C (Current: ${data.temperature}┬░C)`);
             if (data.moisture < 20) {
                 drySoilConsecutiveTicks++;
                 if (drySoilConsecutiveTicks > 10) triggerAlert("warn", "Severe Soil Desiccation", "Soil moisture critically low for an extended period.");
@@ -192,39 +192,61 @@ window.processAnalytics = function(data) {
         }
 
         // Utilities
-        document.getElementById('trkIrrTime').innerText = formatRuntime(irrTicksToday);
-        document.getElementById('trkIrrSession').innerText = formatRuntime(irrTicksSession);
-        document.getElementById('trkTankTime').innerText = formatRuntime(tankTicksToday);
-        document.getElementById('trkTankSession').innerText = formatRuntime(tankTicksSession);
+        const trkIrrTime = document.getElementById('trkIrrTime');
+        const trkIrrSession = document.getElementById('trkIrrSession');
+        const trkTankTime = document.getElementById('trkTankTime');
+        const trkTankSession = document.getElementById('trkTankSession');
         
-        document.getElementById('trkEnergyToday').innerText = `${energyToday.toFixed(3)} kWh`;
-        document.getElementById('trkEnergySession').innerText = `${energySession.toFixed(3)} kWh`;
-        document.getElementById('trkCostToday').innerText = `₹ ${costToday.toFixed(2)}`;
+        if (trkIrrTime) { const val = formatRuntime(irrTicksToday); if (trkIrrTime.innerText !== val) trkIrrTime.innerText = val; }
+        if (trkIrrSession) { const val = formatRuntime(irrTicksSession); if (trkIrrSession.innerText !== val) trkIrrSession.innerText = val; }
+        if (trkTankTime) { const val = formatRuntime(tankTicksToday); if (trkTankTime.innerText !== val) trkTankTime.innerText = val; }
+        if (trkTankSession) { const val = formatRuntime(tankTicksSession); if (trkTankSession.innerText !== val) trkTankSession.innerText = val; }
+        
+        const trkEnergyToday = document.getElementById('trkEnergyToday');
+        const trkEnergySession = document.getElementById('trkEnergySession');
+        const trkCostToday = document.getElementById('trkCostToday');
+        
+        if (trkEnergyToday) { const val = `${energyToday.toFixed(3)} kWh`; if (trkEnergyToday.innerText !== val) trkEnergyToday.innerText = val; }
+        if (trkEnergySession) { const val = `${energySession.toFixed(3)} kWh`; if (trkEnergySession.innerText !== val) trkEnergySession.innerText = val; }
+        if (trkCostToday) { const val = `₹ ${costToday.toFixed(2)}`; if (trkCostToday.innerText !== val) trkCostToday.innerText = val; }
         
         const powerDrawEl = document.getElementById('trkPowerDraw');
         if (powerDrawEl) {
-            powerDrawEl.innerText = anyMotorOn ? `${POWER_KW} kW` : "0 kW";
-            powerDrawEl.className = anyMotorOn ? 'clr-red' : 'clr-green';
+            const txt = anyMotorOn ? `${POWER_KW} kW` : "0 kW";
+            const cls = anyMotorOn ? 'clr-red' : 'clr-green';
+            if (powerDrawEl.innerText !== txt) powerDrawEl.innerText = txt;
+            if (powerDrawEl.className !== cls) powerDrawEl.className = cls;
         }
 
         // Update Reports DOM
-        document.getElementById('repWater').innerText = `${totalWaterLiters.toFixed(2)} L`;
-        document.getElementById('repCycles').innerText = irrigationCount;
-        document.getElementById('repTemp').innerText = `${avgTemp} °C`;
-        document.getElementById('repMoist').innerText = `${avgMoist} %`;
+        const repWater = document.getElementById('repWater');
+        const repCycles = document.getElementById('repCycles');
+        const repTemp = document.getElementById('repTemp');
+        const repMoist = document.getElementById('repMoist');
         
-        document.getElementById('repTotalRuntime').innerText = formatRuntime(totalTicksToday);
-        document.getElementById('repTotalEnergy').innerText = `${energyToday.toFixed(2)} kWh`;
-        document.getElementById('repTotalCost').innerText = `₹ ${costToday.toFixed(2)}`;
+        if (repWater) { const val = `${totalWaterLiters.toFixed(2)} L`; if (repWater.innerText !== val) repWater.innerText = val; }
+        if (repCycles) { const val = irrigationCount.toString(); if (repCycles.innerText !== val) repCycles.innerText = val; }
+        if (repTemp) { const val = `${avgTemp} °C`; if (repTemp.innerText !== val) repTemp.innerText = val; }
+        if (repMoist) { const val = `${avgMoist} %`; if (repMoist.innerText !== val) repMoist.innerText = val; }
+        
+        const repTotalRuntime = document.getElementById('repTotalRuntime');
+        const repTotalEnergy = document.getElementById('repTotalEnergy');
+        const repTotalCost = document.getElementById('repTotalCost');
+        
+        if (repTotalRuntime) { const val = formatRuntime(totalTicksToday); if (repTotalRuntime.innerText !== val) repTotalRuntime.innerText = val; }
+        if (repTotalEnergy) { const val = `${energyToday.toFixed(2)} kWh`; if (repTotalEnergy.innerText !== val) repTotalEnergy.innerText = val; }
+        if (repTotalCost) { const val = `₹ ${costToday.toFixed(2)}`; if (repTotalCost.innerText !== val) repTotalCost.innerText = val; }
 
-        document.getElementById('repHighTemp').innerText = `${highestTemp.toFixed(1)} °C`;
-        document.getElementById('repLowMoist').innerText = `${lowestMoist.toFixed(1)} %`;
+        const repHighTemp = document.getElementById('repHighTemp');
+        const repLowMoist = document.getElementById('repLowMoist');
+        if (repHighTemp) { const val = `${highestTemp.toFixed(1)} °C`; if (repHighTemp.innerText !== val) repHighTemp.innerText = val; }
+        if (repLowMoist) { const val = `${lowestMoist.toFixed(1)} %`; if (repLowMoist.innerText !== val) repLowMoist.innerText = val; }
         
         // Weekly Estimates
         let weekEnergy = energyToday * 7;
         document.getElementById('repWeekWater').innerText = (totalWaterLiters * 7).toFixed(1);
         document.getElementById('repWeekEnergy').innerText = `${weekEnergy.toFixed(2)} kWh`;
-        document.getElementById('repWeekCost').innerText = `₹ ${(weekEnergy * COST_PER_KWH).toFixed(2)}`;
+        document.getElementById('repWeekCost').innerText = `Ôé╣ ${(weekEnergy * COST_PER_KWH).toFixed(2)}`;
 
         // Energy Insight logic
         const engInsight = document.getElementById('insightEnergyTxt');
