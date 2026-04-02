@@ -251,6 +251,14 @@ async function sendSerialCommand() {
 
     const uid = auth.currentUser?.uid;
     input.value = '';
+    
+    // Process Command
+    if (cmd.toUpperCase().startsWith("BAUD_")) {
+        const rate = cmd.split('_')[1];
+        const baudSelect = document.getElementById('baudRate');
+        if (baudSelect) baudSelect.value = rate;
+    }
+
     addTerminalLog(`CMD SENT: ${cmd}`, 'cmd');
 
     // Execute Cloud Write
@@ -258,6 +266,37 @@ async function sendSerialCommand() {
         await db.ref(`users/${uid}/devices/${activeDeviceId}/control/command`).set(cmd); 
     } catch (e) { 
         addTerminalLog("Cloud Write Failed", "error"); 
+    }
+}
+
+async function sendQuickCommand(cmd) {
+    if (!activeDeviceId) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    addTerminalLog(`QUICK CMD: ${cmd}`, 'cmd');
+    try { 
+        await db.ref(`users/${uid}/devices/${activeDeviceId}/control/command`).set(cmd); 
+    } catch (e) { 
+        addTerminalLog("Action Failed", "error"); 
+    }
+}
+window.sendQuickCommand = sendQuickCommand;
+
+async function clearCloudLogs() {
+    if (!activeDeviceId) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    if (!confirm("Are you sure you want to permanently delete ALL serial history from the cloud for this device? This cannot be undone.")) return;
+
+    try {
+        await db.ref(`users/${uid}/devices/${activeDeviceId}/meta/logs`).remove();
+        addTerminalLog("--- Cloud History Wiped ---", "sys");
+        const term = document.getElementById('termConsole');
+        if (term) term.innerHTML = '<div class="term-line sys">--- Terminal Cleared ---</div>';
+    } catch (e) {
+        addTerminalLog("Wipe Failed: " + e.message, "error");
     }
 }
 
@@ -517,17 +556,31 @@ window.onload = () => {
     // BAUDRATE RECONNECT LOGIC
     const baudRateSelect = document.getElementById('baudRate');
     if(baudRateSelect) {
-        baudRateSelect.addEventListener('change', () => {
+        baudRateSelect.addEventListener('change', async () => {
             const newRate = baudRateSelect.value;
-            addTerminalLog(`Reconnecting at ${newRate} baud...`, "sys");
+            addTerminalLog(`Reconfiguring hardware to ${newRate} baud...`, "sys");
+            
+            // Send Command to ESP32
+            const uid = auth.currentUser?.uid;
+            if (uid && activeDeviceId) {
+                try {
+                    await db.ref(`users/${uid}/devices/${activeDeviceId}/control/command`).set(`BAUD_${newRate}`);
+                    addTerminalLog(`Syncing baud rate with cloud...`, "sys");
+                } catch (e) {
+                    addTerminalLog("Baud Sync Failed", "error");
+                }
+            }
+
             setTimeout(() => {
                 addTerminalLog(`--- Connection Re-established ---`, "sys");
-                addTerminalLog(`Device online at ${newRate}.`, "response");
+                addTerminalLog(`Channel online at ${newRate}.`, "response");
                 const chkAutoscroll = document.getElementById('chkAutoscroll');
                 if(chkAutoscroll && chkAutoscroll.checked) termConsole.scrollTop = termConsole.scrollHeight;
-            }, 800);
+            }, 1200);
         });
     }
+
+    document.getElementById('btnClearCloud')?.addEventListener('click', clearCloudLogs);
 
     // Download log properly formats without HTML tags
     document.getElementById('btnDownloadLog')?.addEventListener('click', () => {

@@ -450,7 +450,8 @@
             </div>
             <div class="terminal-actions">
                 <button class="terminal-action-btn" id="btnPauseLogs" title="Pause/Resume Logs"><i class='bx bx-pause' id="iconPauseLogs"></i></button>
-                <button class="terminal-action-btn" id="btnClearTerm" title="Clear Console"><i class='bx bx-trash'></i></button>
+                <button class="terminal-action-btn" id="btnClearTerm" title="Clear Visual Console"><i class='bx bx-brush-alt'></i></button>
+                <button class="terminal-action-btn terminal-danger" id="btnClearCloud" title="Clear Cloud Serial History"><i class='bx bx-trash'></i></button>
                 <button class="terminal-action-btn" id="btnDownloadLog" title="Download Log"><i class='bx bx-download'></i></button>
                 <button class="terminal-close-btn" id="btnCloseSerial">&times;</button>
             </div>
@@ -477,6 +478,17 @@
                     <span>Timestamps</span>
                 </label>
             </div>
+        </div>
+
+        <!-- QUICK COMMANDS -->
+        <div class="terminal-quick-cmds">
+            <button onclick="sendQuickCommand('AUTO')" title="Switch to Automatic mode">AUTO</button>
+            <button onclick="sendQuickCommand('MANUAL')" title="Switch to Manual mode">MANUAL</button>
+            <button onclick="sendQuickCommand('TANK_ON')" title="Force Tank Motor ON">TANK ON</button>
+            <button onclick="sendQuickCommand('TANK_OFF')" title="Force Tank Motor OFF">TANK OFF</button>
+            <button onclick="sendQuickCommand('IRR_ON')" title="Force Irrigation ON">IRR ON</button>
+            <button onclick="sendQuickCommand('IRR_OFF')" title="Force Irrigation OFF">IRR OFF</button>
+            <button onclick="sendQuickCommand('STATUS')" title="Get current system health status">STATUS</button>
         </div>
 
         <!-- Terminal Console -->

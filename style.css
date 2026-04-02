@@ -885,6 +885,41 @@ input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
     accent-color: #007acc;
 }
 
+/* Quick Commands Bar */
+.terminal-quick-cmds {
+    background: #252526;
+    padding: 0.5rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #333333;
+}
+
+.terminal-quick-cmds button {
+    background: #37373d;
+    border: 1px solid #454545;
+    color: #cccccc;
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.terminal-quick-cmds button:hover {
+    background: #007acc;
+    color: white;
+    border-color: #007acc;
+}
+
+.terminal-action-btn.terminal-danger:hover {
+    background: #e51400;
+    color: white;
+}
+
 /* Console Area */
 .terminal-container {
     flex: 1;
@@ -913,20 +948,12 @@ input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
     display: flex;
     align-items: flex-start;
 }
-.term-line.sys-msg { color: #6a9955; font-style: italic; }
+.term-line.sys { color: #888888; font-style: italic; }
 .term-line.cmd { color: #569cd6; font-weight: bold; }
-.term-line.response { color: #4ec9b0; }
-.term-line.error { color: #f48771; }
+.term-line.response { color: #4ec9b0; border-left: 2px solid #333333; padding-left: 8px; margin-left: 4px; }
+.term-line.error { color: #f48771; background: rgba(244, 135, 113, 0.05); }
 .term-line.warn { color: #cca700; }
-.term-timestamp {
-    color: #858585;
-    margin-right: 8px;
-    font-size: 0.75rem;
-    display: none; /* Hidden by default */
-}
-.show-timestamps .term-timestamp {
-    display: inline-block;
-}
+.term-timestamp { color: #15803d; margin-right: 8px; font-size: 0.75rem; min-width: 75px; font-weight: bold; }
 
 /* Input Area */
 .terminal-input-wrapper {
