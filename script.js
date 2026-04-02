@@ -21,8 +21,18 @@ const syncRegistry = {}; // Prevent duplicate listener proliferation
 auth.onAuthStateChanged((user) => {
     if (user) {
         console.log("UID:", user.uid);
-        document.getElementById('userName').innerText = user.displayName || "User";
-        if (document.getElementById('userPhoto')) document.getElementById('userPhoto').src = user.photoURL || "";
+        
+        // Initial set from Auth
+        updateUserUI(user.displayName, user.photoURL, user.email);
+
+        // Fetch Extended Profile from RTDB
+        db.ref(`users/${user.uid}/profile`).on('value', (snapshot) => {
+            const profile = snapshot.val();
+            if (profile) {
+                updateUserUI(profile.name, profile.photo, profile.email);
+            }
+        });
+
         initDeviceManager(user.uid);
     } else {
         if (!window.location.pathname.includes('login.html')) {
@@ -30,6 +40,16 @@ auth.onAuthStateChanged((user) => {
         }
     }
 });
+
+function updateUserUI(name, photo, email) {
+    if (name) document.getElementById('userName').innerText = name;
+    if (name) document.getElementById('dropdownUserName').innerText = name;
+    if (email) document.getElementById('dropdownUserEmail').innerText = email;
+    if (photo) {
+        if (document.getElementById('userPhoto')) document.getElementById('userPhoto').src = photo;
+        if (document.getElementById('dropdownUserPhoto')) document.getElementById('dropdownUserPhoto').src = photo;
+    }
+}
 
 function handleLogout() {
     auth.signOut().then(() => {
@@ -602,9 +622,81 @@ window.onload = () => {
         addTerminalLog("Session log exported successfully.", "sys");
     });
 
+    document.getElementById('btnEditProfile')?.addEventListener('click', openProfileModal);
+    document.getElementById('formUserProfile')?.addEventListener('submit', saveProfile);
+    
+    // Closer generic for modals
+    document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+        });
+    });
+
     document.getElementById('btnHamburger')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('open'));
     document.getElementById('profileTrigger')?.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('profileDropdown')?.classList.toggle('open'); });
     document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('open'));
     document.getElementById('btnLogout')?.addEventListener('click', handleLogout);
     document.getElementById('btnLogoutProfile')?.addEventListener('click', handleLogout);
 };
+
+// PROFILE FUNCTIONS
+function openProfileModal() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const modal = document.getElementById('modalUserProfile');
+    document.getElementById('profileName').value = user.displayName || "";
+    document.getElementById('profileEmail').value = user.email || "";
+    document.getElementById('profileEmail').disabled = (user.providerData[0]?.providerId !== 'password');
+    document.getElementById('profileModalPhoto').src = user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+    // Fetch Phone from RTDB
+    db.ref(`users/${user.uid}/profile/phone`).once('value').then(snap => {
+        document.getElementById('profilePhone').value = snap.val() || user.phoneNumber || "";
+    });
+
+    modal.classList.add('active');
+    document.getElementById('profileDropdown')?.classList.remove('open');
+}
+
+async function saveProfile(e) {
+    if (e) e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const btn = document.getElementById('btnUpdateProfile');
+    btn.disabled = true;
+    btn.innerText = "Saving...";
+
+    const newName = document.getElementById('profileName').value;
+    const newPhone = document.getElementById('profilePhone').value;
+    const newEmail = document.getElementById('profileEmail').value;
+
+    try {
+        // 1. Update Auth Profile
+        await user.updateProfile({ displayName: newName });
+        
+        // 2. Update RTDB Profile (Extended Metadata)
+        await db.ref(`users/${user.uid}/profile`).update({
+            name: newName,
+            phone: newPhone,
+            email: newEmail,
+            lastUpdated: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        // Update Local Storage for Session consistency
+        const localUser = JSON.parse(localStorage.getItem('user') || "{}");
+        localUser.name = newName;
+        localUser.email = newEmail;
+        localStorage.setItem('user', JSON.stringify(localUser));
+
+        addTerminalLog("Profile updated successfully.", "sys");
+        document.getElementById('modalUserProfile').classList.remove('active');
+    } catch (err) {
+        console.error("Profile Save Error:", err);
+        alert("Failed to update profile: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Save Profile";
+    }
+}

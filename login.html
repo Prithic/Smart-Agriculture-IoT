@@ -16,18 +16,19 @@
             justify-content: center;
             background: var(--bg-main);
             padding: 1rem;
+            min-height: 100vh;
         }
 
         .login-card {
             width: 100%;
             max-width: 450px;
-            text-align: center;
-            padding: 3rem 2rem;
+            padding: 2.5rem 2rem;
             animation: fadeIn 0.5s ease-out;
         }
 
         .login-header {
-            margin-bottom: 2.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
         }
 
         .login-icon {
@@ -40,20 +41,19 @@
             align-items: center;
             justify-content: center;
             border-radius: 12px;
-            margin: 0 auto 1.5rem;
+            margin: 0 auto 1rem;
             box-shadow: 0 4px 12px rgba(21, 128, 61, 0.15);
         }
 
         .login-header h1 {
             color: var(--primary);
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
+            font-size: 1.6rem;
+            margin-bottom: 0.2rem;
         }
 
         .login-header p {
             color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.5;
+            font-size: 0.9rem;
         }
 
         .btn-google {
@@ -64,37 +64,102 @@
             width: 100%;
             padding: 0.8rem;
             background: white;
-            border: 1px solid var(--border);
+            border: 1.5px solid var(--border);
             border-radius: 12px;
             font-weight: 600;
             color: var(--text-dark);
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s;
             font-size: 1rem;
-            box-shadow: var(--shadow);
+            margin-bottom: 1rem;
         }
 
         .btn-google:hover {
             background: #f9fafb;
             border-color: var(--primary-light);
             transform: translateY(-2px);
-            box-shadow: var(--shadow-hover);
         }
 
         .btn-google img {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
         }
 
-        .footer-text {
-            margin-top: 2rem;
-            font-size: 0.85rem;
+        .or-divider {
+            display: flex;
+            align-items: center;
+            margin: 1.5rem 0;
             color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .or-divider::before, .or-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+            margin: 0 1rem;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: var(--text-dark);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: var(--primary-soft);
+        }
+
+        .btn-auth-action {
+            width: 100%;
+            padding: 0.9rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .btn-auth-action:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-auth-action:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
         }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        #recaptcha-container {
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
         }
     </style>
 </head>
@@ -105,16 +170,75 @@
             <div class="login-icon">
                 <i class='bx bxs-leaf'></i>
             </div>
-            <h1>Smart Agriculture System</h1>
-            <p>Monitor and control your farm remotely.<br>Please sign in to access your dashboard.</p>
+            <h1>Smart Agriculture</h1>
+            <p>Remote Farm Management System</p>
         </div>
 
-        <button class="btn-google" id="btnLogin">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
-            Sign in with Google
-        </button>
+        <!-- Auth Provider Tabs -->
+        <div class="auth-tabs">
+            <button class="auth-tab active" data-tab="tabGoogle"><i class='bx bxl-google'></i> Google</button>
+            <button class="auth-tab" data-tab="tabEmail"><i class='bx bx-envelope'></i> Email</button>
+            <button class="auth-tab" data-tab="tabPhone"><i class='bx bx-phone'></i> Phone</button>
+        </div>
 
-        <p class="footer-text">© 2026 SmartAgri IoT. All rights reserved.</p>
+        <!-- Google Tab -->
+        <div id="tabGoogle" class="auth-form-container active">
+            <button class="btn-google" id="btnLoginGoogle">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
+                Continue with Google
+            </button>
+        </div>
+
+        <!-- Email Tab -->
+        <div id="tabEmail" class="auth-form-container">
+            <form id="formEmailAuth">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="emailInput" required placeholder="name@company.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="passwordInput" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-auth-action" id="btnEmailAction">Sign In</button>
+                <div class="auth-footer-links">
+                    <span id="emailToggleText">Don't have an account?</span> 
+                    <a id="btnToggleEmailMode">Sign Up</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Phone Tab -->
+        <div id="tabPhone" class="auth-form-container">
+            <form id="formPhoneAuth">
+                <div id="phoneInputGroup">
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="phoneNumber" placeholder="+1 234 567 890" required>
+                    </div>
+                    <div id="recaptcha-container"></div>
+                    <button type="button" class="btn-auth-action" id="btnSendOtp">Send Verification Code</button>
+                </div>
+                
+                <div id="otpInputGroup" style="display: none;">
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Enter the 6-digit code sent to your phone.</p>
+                    <div class="otp-wrapper">
+                        <input type="text" class="otp-field" maxlength="1" pattern="\d*">
+                        <input type="text" class="otp-field" maxlength="1" pattern="\d*">
+                        <input type="text" class="otp-field" maxlength="1" pattern="\d*">
+                        <input type="text" class="otp-field" maxlength="1" pattern="\d*">
+                        <input type="text" class="otp-field" maxlength="1" pattern="\d*">
+                        <input type="text" class="otp-field" maxlength="1" pattern="\d*">
+                    </div>
+                    <button type="button" class="btn-auth-action" id="btnVerifyOtp" style="margin-top: 1.5rem;">Verify & Home</button>
+                    <div class="auth-footer-links">
+                        <a id="btnResendOtp">Didn't get code? Change Number</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <p class="footer-text" style="margin-top: 2rem; font-size: 0.8rem; color: var(--text-muted);">© 2026 SmartAgri IoT. All rights reserved.</p>
     </section>
 
     <!-- Firebase SDKs -->
@@ -125,53 +249,151 @@
     <script src="config.js"></script>
 
     <script>
-
         // Initialize Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const auth = firebase.auth();
 
-        // Check if already logged in
+        // Redirect if already logged in
         if (localStorage.getItem('user')) {
              window.location.href = 'index.html';
         }
 
-        const btnLogin = document.getElementById('btnLogin');
+        // --- TAB SWITCHING ---
+        const tabs = document.querySelectorAll('.auth-tab');
+        const containers = document.querySelectorAll('.auth-form-container');
 
-        // Login Handler
-        btnLogin.addEventListener('click', () => {
-            // Guard: Disable button to prevent multiple concurrent popups
-            btnLogin.disabled = true;
-            btnLogin.style.opacity = "0.7";
-            btnLogin.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Signing in...';
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                containers.forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
 
-            const provider = new firebase.auth.GoogleAuthProvider();
+        // --- GOOGLE LOGIN ---
+        const btnGoogle = document.getElementById('btnLoginGoogle');
+        btnGoogle.addEventListener('click', () => {
+            btnGoogle.disabled = true;
+            btnGoogle.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Connecting...';
             
+            const provider = new firebase.auth.GoogleAuthProvider();
             auth.signInWithPopup(provider)
-                .then((result) => {
-                    const user = result.user;
-                    const userData = {
-                        name: user.displayName,
-                        email: user.email,
-                        photo: user.photoURL,
-                        uid: user.uid
-                    };
-                    localStorage.setItem('user', JSON.stringify(userData));
-                    window.location.href = 'index.html';
+                .then(result => finalizeLogin(result.user))
+                .catch(err => handleAuthError(err, btnGoogle, '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"> Continue with Google'));
+        });
+
+        // --- EMAIL LOGIN / SIGNUP ---
+        let isSignUpMode = false;
+        const formEmail = document.getElementById('formEmailAuth');
+        const btnEmailAction = document.getElementById('btnEmailAction');
+        const btnToggleEmailMode = document.getElementById('btnToggleEmailMode');
+        const emailToggleText = document.getElementById('emailToggleText');
+
+        btnToggleEmailMode.addEventListener('click', () => {
+            isSignUpMode = !isSignUpMode;
+            btnEmailAction.innerText = isSignUpMode ? "Create Account" : "Sign In";
+            emailToggleText.innerText = isSignUpMode ? "Already have an account?" : "Don't have an account?";
+            btnToggleEmailMode.innerText = isSignUpMode ? "Sign In" : "Sign Up";
+        });
+
+        formEmail.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            
+            btnEmailAction.disabled = true;
+            btnEmailAction.innerText = isSignUpMode ? "Creating..." : "Signing in...";
+
+            const authAction = isSignUpMode 
+                ? auth.createUserWithEmailAndPassword(email, password)
+                : auth.signInWithEmailAndPassword(email, password);
+
+            authAction
+                .then(result => finalizeLogin(result.user))
+                .catch(err => handleAuthError(err, btnEmailAction, isSignUpMode ? "Create Account" : "Sign In"));
+        });
+
+        // --- PHONE LOGIN ---
+        let confirmationResult = null;
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+            'size': 'normal'
+        });
+
+        const btnSendOtp = document.getElementById('btnSendOtp');
+        const phoneInputGroup = document.getElementById('phoneInputGroup');
+        const otpInputGroup = document.getElementById('otpInputGroup');
+
+        btnSendOtp.addEventListener('click', () => {
+            const num = document.getElementById('phoneNumber').value;
+            if (!num) return alert("Please enter a valid phone number");
+
+            btnSendOtp.disabled = true;
+            btnSendOtp.innerText = "Sending...";
+
+            auth.signInWithPhoneNumber(num, window.recaptchaVerifier)
+                .then(result => {
+                    confirmationResult = result;
+                    phoneInputGroup.style.display = 'none';
+                    otpInputGroup.style.display = 'block';
                 })
-                .catch((error) => {
-                    console.error("Login Error:", error);
-                    // Reset button on error
-                    btnLogin.disabled = false;
-                    btnLogin.style.opacity = "1";
-                    btnLogin.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo"> Sign in with Google';
-                    
-                    if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
-                        alert("Authentication failed: " + error.message);
-                    }
+                .catch(err => {
+                    handleAuthError(err, btnSendOtp, "Send Verification Code");
+                    window.recaptchaVerifier.render().then(id => grecaptcha.reset(id));
                 });
         });
+
+        // OTP Field Auto-focus
+        const otpFields = document.querySelectorAll('.otp-field');
+        otpFields.forEach((f, idx) => {
+            f.addEventListener('input', (e) => {
+                if (e.target.value && idx < otpFields.length - 1) otpFields[idx+1].focus();
+            });
+            f.addEventListener('keydown', (e) => {
+                if (e.key === "Backspace" && !e.target.value && idx > 0) otpFields[idx-1].focus();
+            });
+        });
+
+        document.getElementById('btnVerifyOtp').addEventListener('click', () => {
+            const code = Array.from(otpFields).map(f => f.value).join('');
+            if (code.length !== 6) return alert("Please enter 6-digit code");
+
+            const btn = document.getElementById('btnVerifyOtp');
+            btn.disabled = true;
+            btn.innerText = "Verifying...";
+
+            confirmationResult.confirm(code)
+                .then(result => finalizeLogin(result.user))
+                .catch(err => handleAuthError(err, btn, "Verify & Home"));
+        });
+
+        document.getElementById('btnResendOtp').addEventListener('click', () => {
+             location.reload();
+        });
+
+        // --- UTILS ---
+        function finalizeLogin(user) {
+            const userData = {
+                name: user.displayName || user.email?.split('@')[0] || user.phoneNumber,
+                email: user.email || "",
+                phone: user.phoneNumber || "",
+                photo: user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                uid: user.uid,
+                provider: user.providerData[0]?.providerId
+            };
+            localStorage.setItem('user', JSON.stringify(userData));
+            window.location.href = 'index.html';
+        }
+
+        function handleAuthError(err, btn, originalText) {
+            console.error("Auth Exception:", err);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            alert(err.message);
+        }
     </script>
 </body>
 </html>

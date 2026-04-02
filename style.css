@@ -1021,6 +1021,121 @@ input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
 .report-list li span { color: var(--text-muted); font-weight: 600; }
 .report-list li strong { color: var(--primary); font-size: 1.2rem; }
 
+/* --- G. PROFILE & AUTH ENHANCEMENTS --- */
+.profile-modal-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.profile-avatar-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+.profile-avatar-big {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--primary-soft);
+    box-shadow: var(--shadow);
+}
+
+.edit-avatar-btn {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: var(--primary);
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform 0.2s;
+}
+
+.edit-avatar-btn:hover { transform: scale(1.1); }
+
+/* Auth Tabs */
+.auth-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    background: #f1f5f9;
+    padding: 0.4rem;
+    border-radius: 12px;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 0.6rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.auth-tab.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.auth-form-container {
+    display: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.auth-form-container.active {
+    display: block;
+}
+
+.otp-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.otp-field {
+    width: 45px;
+    height: 55px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+}
+
+.otp-field:focus {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+}
+
+.auth-footer-links {
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.auth-footer-links a {
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+}
+
 /* --- RESPONSIVENESS --- */
 @media (max-width: 1024px) {
     .analytics-grid, .reports-grid { grid-template-columns: 1fr; }
