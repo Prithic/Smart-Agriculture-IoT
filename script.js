@@ -12,6 +12,7 @@ let currentControlState = {};
 let devices = {};
 let isLogsPaused = false;
 let lastLogIndex = -1;
+let lastProcessedLog = ""; // Guard for single-status model
 const syncRegistry = {}; // Prevent duplicate listener proliferation
 
 // ==========================================
@@ -76,24 +77,20 @@ function initRealtimeSync(uid, deviceId) {
         updateControlUI(controlData);
     });
 
-    // 3. Status Listener (Correct Path)
+    // 3. Status & Logs Listener (Single-Status Model)
     const statusRef = db.ref(currentSyncPath + '/meta/status');
     syncRegistry.status = { path: currentSyncPath + '/meta/status' };
     statusRef.on('value', (snapshot) => {
         const st = snapshot.val() || {};
+        
+        // Online Tracking
         const isOnline = (st.online === true && (Date.now() - (st.ts || 0)) < 15000);
         setOnlineStatus(isOnline);
-    });
-    
-    // 4. Logs Listener (Production Push-ID Model)
-    const logRef = db.ref(currentSyncPath + '/meta/logs');
-    syncRegistry.logs = { path: currentSyncPath + '/meta/logs' };
-    logRef.limitToLast(20).on('child_added', (snapshot) => {
-        if (isLogsPaused) return;
-        const data = snapshot.val();
-        const msg = typeof data === 'object' ? data.msg : data;
-        
-        if (msg) {
+
+        // Single-Status Log Integration
+        if (st.lastLog && st.lastLog !== lastProcessedLog && !isLogsPaused) {
+            lastProcessedLog = st.lastLog;
+            const msg = st.lastLog;
             const isCmd = msg.includes("CMD") || msg.includes("EXECUTED") || msg.includes("AUTO:");
             addTerminalLog(isCmd ? msg : `ESP32: ${msg}`, isCmd ? "cmd" : "response");
         }

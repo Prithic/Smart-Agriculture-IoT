@@ -50,22 +50,18 @@ long pendingBaud = 0;
 unsigned long baudChangeTime = 0;
 
 // ===== LOGGING SYSTEM =====
-void logMessage(String msg) {
+void logMessage(String msg, bool cloud = true) {
   Serial.println(msg);
-  if (!Firebase.ready()) return;
+  if (!cloud || !Firebase.ready()) return;
 
   // Clean invalid JSON formatting characters
   msg.replace("\r", "");
   msg.replace("\n", " "); 
   msg.replace("\"", "'"); 
   
-  FirebaseJson json;
-  json.add("m", msg);
-  json.add("t", Firebase.RTDB.getTimestamp(&fbdo) ? fbdo.to<uint64_t>() : millis());
-
-  String logPath = "/users/" + String(USER_ID) + "/devices/" + String(DEVICE_ID) + "/meta/logs";
-  if (Firebase.RTDB.pushJSON(&fbdo, logPath, &json)) {
-    // Log successfully pushed
+  String logPath = "/users/" + String(USER_ID) + "/devices/" + String(DEVICE_ID) + "/meta/status/lastLog";
+  if (Firebase.RTDB.setString(&fbdo, logPath, msg)) {
+    // Log successfully set (overwritten)
   } else {
     Serial.println("Log Error: " + fbdo.errorReason());
   }
@@ -254,7 +250,7 @@ void checkSerial() {
 
 void setup() {
   Serial.begin(9600);
-  logMessage("Booting...");
+  logMessage("Booting...", false); // Local only
   pinMode(WATER_MOTOR_PIN, OUTPUT);
   pinMode(SOIL_MOTOR_PIN, OUTPUT);
   pinMode(TANK_LOW, INPUT_PULLUP);
@@ -270,7 +266,7 @@ void setup() {
     delay(500); 
     Serial.print("."); 
   }
-  logMessage("WiFi Connected");
+  logMessage("WiFi Connected", false); // Local only
   
   initFirebase();
 }
