@@ -46,35 +46,29 @@ float temperature = 0;
 float humidity = 0;
 float moisture = 0;
 int tankLevel = 0; 
+long pendingBaud = 0;
+unsigned long baudChangeTime = 0;
 
 // ===== LOGGING SYSTEM =====
-const int MAX_LOG_LINES = 30;
-String logLines[MAX_LOG_LINES];
-int logCount = 0;
-int globalLogIndex = 0;
-bool logsChanged = false;
-
-void addSystemLog(String msg) {
+void logMessage(String msg) {
   Serial.println(msg);
-  String entry = String(globalLogIndex++) + "|" + msg;
-  
-  if (logCount >= MAX_LOG_LINES) {
-    for (int i = 1; i < MAX_LOG_LINES; i++) {
-        logLines[i - 1] = logLines[i];
-    }
-    logLines[MAX_LOG_LINES - 1] = entry;
-  } else {
-    logLines[logCount++] = entry;
-  }
-  logsChanged = true;
-}
+  if (!Firebase.ready()) return;
 
-String getLogsString() {
-  String result = "";
-  for(int i = 0; i < logCount; i++) {
-    result += logLines[i] + "\n";
+  // Clean invalid JSON formatting characters
+  msg.replace("\r", "");
+  msg.replace("\n", " "); 
+  msg.replace("\"", "'"); 
+  
+  FirebaseJson json;
+  json.add("m", msg);
+  json.add("t", Firebase.RTDB.getTimestamp(&fbdo) ? fbdo.to<uint64_t>() : millis());
+
+  String logPath = "/users/" + String(USER_ID) + "/devices/" + String(DEVICE_ID) + "/meta/logs";
+  if (Firebase.RTDB.pushJSON(&fbdo, logPath, &json)) {
+    // Log successfully pushed
+  } else {
+    Serial.println("Log Error: " + fbdo.errorReason());
   }
-  return result;
 }
 
 // ===== FIREBASE INIT =====
@@ -82,16 +76,20 @@ void initFirebase() {
   config.database_url = DATABASE_URL;
   config.signer.tokens.legacy_token = DATABASE_SECRET;
   Firebase.reconnectWiFi(true);
+  fbdo.setBSSLBufferSize(2048, 512); // Stabilizes SSL memory
   Firebase.begin(&config, &auth);
-  Serial.println("Firebase Connected");
+  logMessage("Firebase Connected");
 }
 
 // ===== FIREBASE SYNC =====
 void syncFirebase() {
-  if (Firebase.ready() && (millis() - sendDataPrevMillis > 3000 || sendDataPrevMillis == 0)) {
+  if (!Firebase.ready()) return;
+  String basePath = "/users/" + String(USER_ID) + "/devices/" + String(DEVICE_ID);
+
+  // === TELEMETRY & STATUS SYNC (Every 5 seconds - Production Paced) ===
+  if (millis() - sendDataPrevMillis > 5000 || sendDataPrevMillis == 0) {
     sendDataPrevMillis = millis();
 
-    String basePath = "/users/" + String(USER_ID) + "/devices/" + String(DEVICE_ID);
     bool success = true;
     
     // 1. Send Sensor Data
@@ -100,36 +98,40 @@ void syncFirebase() {
     if (!Firebase.RTDB.setInt(&fbdo, basePath + "/sensor/moisture", (int)moisture)) success = false;
     if (!Firebase.RTDB.setInt(&fbdo, basePath + "/sensor/tankLevel", tankLevel)) success = false;
     
-    // 2. Heartbeat (lastActive)
-    if (!Firebase.RTDB.setTimestamp(&fbdo, basePath + "/meta/lastActive")) success = false;
-
-    if (logsChanged) {
-        if (Firebase.RTDB.setString(&fbdo, basePath + "/meta/logs", getLogsString())) {
-            logsChanged = false;
-        }
-    }
+    // 2. Production Status & Heartbeat
+    FirebaseJson status;
+    status.add("online", true);
+    status.add("lastActive", (double)millis()); // Simple heartbeat
+    status.set("ts/.sv", "timestamp"); // Server-side timestamp
+    
+    if (!Firebase.RTDB.setJSON(&fbdo, basePath + "/meta/status", &status)) success = false;
 
     if (success) {
-      static int syncCount = 0;
-      if (syncCount++ % 20 == 0) addSystemLog("Sending Data..."); // Reduce spam
+      Serial.println("Data sent: OK");
     } else {
-      addSystemLog("Sync failed: " + fbdo.errorReason());
+      Serial.println("Sync error: " + fbdo.errorReason());
     }
+  }
 
+  // === REAL-TIME COMMAND POLLING (Every 1 second for instant dashboard feel) ===
+  static unsigned long controlDataPrevMillis = 0;
+  if (millis() - controlDataPrevMillis > 1000 || controlDataPrevMillis == 0) {
+    controlDataPrevMillis = millis();
+    
     // 3. Read Control Data
     if (Firebase.RTDB.getString(&fbdo, basePath + "/control/mode")) {
       if (fbdo.dataType() == "string") {
         String m = fbdo.stringData();
         if (m == "AUTO" && !autoMode) {
-          addSystemLog("CMD RECEIVED: mode AUTO");
+          logMessage("CMD RECEIVED: mode AUTO");
           autoMode = true;
           Firebase.RTDB.setString(&fbdo, basePath + "/control/mode", "AUTO");
-          addSystemLog("EXECUTED: mode AUTO");
+          logMessage("EXECUTED: mode AUTO");
         } else if (m == "MANUAL" && autoMode) {
-          addSystemLog("CMD RECEIVED: mode MANUAL");
+          logMessage("CMD RECEIVED: mode MANUAL");
           autoMode = false;
           Firebase.RTDB.setString(&fbdo, basePath + "/control/mode", "MANUAL");
-          addSystemLog("EXECUTED: mode MANUAL");
+          logMessage("EXECUTED: mode MANUAL");
         }
       }
     }
@@ -138,22 +140,23 @@ void syncFirebase() {
       if (Firebase.RTDB.getInt(&fbdo, basePath + "/control/waterMotor")) {
         bool val = (fbdo.intData() == 1);
         if (waterMotor != val) {
-          addSystemLog("CMD RECEIVED: waterMotor " + String(val ? "ON" : "OFF"));
+          logMessage("CMD RECEIVED: waterMotor " + String(val ? "ON" : "OFF"));
           waterMotor = val;
           Firebase.RTDB.setInt(&fbdo, basePath + "/control/waterMotor", waterMotor ? 1 : 0);
-          addSystemLog("EXECUTED: waterMotor " + String(val ? "ON" : "OFF"));
+          logMessage("EXECUTED: waterMotor " + String(val ? "ON" : "OFF"));
         }
       }
       if (Firebase.RTDB.getInt(&fbdo, basePath + "/control/soilMotor")) {
         bool val = (fbdo.intData() == 1);
         if (soilMotor != val) {
-          addSystemLog("CMD RECEIVED: soilMotor " + String(val ? "ON" : "OFF"));
+          logMessage("CMD RECEIVED: soilMotor " + String(val ? "ON" : "OFF"));
           soilMotor = val;
           Firebase.RTDB.setInt(&fbdo, basePath + "/control/soilMotor", soilMotor ? 1 : 0);
-          addSystemLog("EXECUTED: soilMotor " + String(val ? "ON" : "OFF"));
+          logMessage("EXECUTED: soilMotor " + String(val ? "ON" : "OFF"));
         }
       }
     } else {
+      // If AUTO, the ESP32 determines the motor state, so write back continuously
       Firebase.RTDB.setInt(&fbdo, basePath + "/control/waterMotor", waterMotor ? 1 : 0);
       Firebase.RTDB.setInt(&fbdo, basePath + "/control/soilMotor", soilMotor ? 1 : 0);
     }
@@ -163,9 +166,9 @@ void syncFirebase() {
       if (fbdo.dataType() == "string") {
         String cmd = fbdo.stringData();
         if (cmd != "" && cmd != "NONE") {
-          addSystemLog("CMD RECEIVED: " + cmd);
+          logMessage("CMD RECEIVED: " + cmd);
           String execRes = executeCommand(cmd);
-          addSystemLog("EXECUTED: " + execRes);
+          logMessage("EXECUTED: " + execRes);
           // Clear command once executed
           Firebase.RTDB.setString(&fbdo, basePath + "/control/command", "NONE");
         }
@@ -199,8 +202,8 @@ void runAutomation() {
     soilMotor = false;
   }
 
-  if (waterMotor != prevWater) addSystemLog("AUTO: Tank Motor " + String(waterMotor ? "ON" : "OFF"));
-  if (soilMotor != prevSoil) addSystemLog("AUTO: Irrigation " + String(soilMotor ? "ON" : "OFF"));
+  if (waterMotor != prevWater) logMessage("AUTO: Tank Motor " + String(waterMotor ? "ON" : "OFF"));
+  if (soilMotor != prevSoil) logMessage("AUTO: Irrigation " + String(soilMotor ? "ON" : "OFF"));
 }
 
 // ===== HARDWARE SYNC =====
@@ -242,16 +245,16 @@ void checkSerial() {
     String input = Serial.readStringUntil('\n');
     input.trim();
     if (input.length() > 0) {
-      addSystemLog("CMD RECEIVED: " + input);
+      logMessage("CMD RECEIVED: " + input);
       String res = executeCommand(input);
-      addSystemLog("EXECUTED: " + res);
+      logMessage("EXECUTED: " + res);
     }
   }
 }
 
 void setup() {
   Serial.begin(9600);
-  addSystemLog("Booting...");
+  logMessage("Booting...");
   pinMode(WATER_MOTOR_PIN, OUTPUT);
   pinMode(SOIL_MOTOR_PIN, OUTPUT);
   pinMode(TANK_LOW, INPUT_PULLUP);
@@ -267,7 +270,7 @@ void setup() {
     delay(500); 
     Serial.print("."); 
   }
-  addSystemLog("WiFi Connected");
+  logMessage("WiFi Connected");
   
   initFirebase();
 }
@@ -278,4 +281,14 @@ void loop() {
   updateSensors();
   if (autoMode) runAutomation();
   syncHardware();
+
+  if (pendingBaud > 0 && millis() > baudChangeTime) {
+    long newlySetBaud = pendingBaud;
+    pendingBaud = 0;
+    
+    Serial.flush();
+    Serial.end();
+    Serial.begin(newlySetBaud);
+    logMessage("Hardware baud rate changed to " + String(newlySetBaud));
+  }
 }
